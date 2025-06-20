@@ -1,7 +1,8 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -15,6 +16,8 @@ interface CSVData {
 const DatasetUploader = () => {
   const [csvData, setCsvData] = useState<CSVData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [simulatedDataCount, setSimulatedDataCount] = useState('');
+  const [generatedData, setGeneratedData] = useState<any[] | null>(null);
 
   const expectedHeaders = [
     'participante_id', 'edad', 'nivel_educacion', 'memoria_inmediata',
@@ -25,18 +28,15 @@ const DatasetUploader = () => {
   const validateCSV = (headers: string[], data: any[][]): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
 
-    // Validar headers
     const missingHeaders = expectedHeaders.filter(header => !headers.includes(header));
     if (missingHeaders.length > 0) {
       errors.push(`Headers faltantes: ${missingHeaders.join(', ')}`);
     }
 
-    // Validar que no esté vacío
     if (data.length === 0) {
       errors.push('El archivo no contiene datos');
     }
 
-    // Validar tipos de datos en algunas filas de muestra
     if (data.length > 0) {
       const sampleRows = data.slice(0, Math.min(5, data.length));
       sampleRows.forEach((row, index) => {
@@ -110,32 +110,78 @@ const DatasetUploader = () => {
     reader.readAsText(file);
   };
 
-  const downloadSampleCSV = () => {
-    const sampleData = [
-      ['participante_id', 'edad', 'nivel_educacion', 'memoria_inmediata', 'memoria_trabajo', 'memoria_visual', 'tiempo_reaccion', 'precision_respuestas', 'atencion_sostenida', 'fatiga_cognitiva', 'fecha'],
-      ['SAMPLE_001', '25', '3', '8.5', '7.2', '9.1', '850', '89.5', '8.8', '2', '2024-01-15T10:30:00.000Z'],
-      ['SAMPLE_002', '34', '2', '6.8', '8.4', '7.3', '920', '76.8', '7.9', '3', '2024-01-15T11:45:00.000Z'],
-      ['SAMPLE_003', '42', '3', '9.2', '8.9', '8.7', '780', '94.2', '9.3', '1', '2024-01-15T14:20:00.000Z']
-    ];
+  const generateSimulatedData = () => {
+    const count = parseInt(simulatedDataCount);
+    if (!count || count <= 0 || count > 1000) {
+      toast.error('Ingrese un número válido entre 1 y 1000');
+      return;
+    }
 
-    const csvContent = sampleData.map(row => row.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'sample_dataset.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const simulatedData = [];
+      for (let i = 0; i < count; i++) {
+        const data = {
+          participante_id: `SIM_${Date.now()}_${i}`,
+          edad: Math.floor(Math.random() * 60) + 20,
+          nivel_educacion: Math.floor(Math.random() * 3) + 1,
+          memoria_inmediata: +(Math.random() * 10).toFixed(1),
+          memoria_trabajo: +(Math.random() * 10).toFixed(1),
+          memoria_visual: +(Math.random() * 10).toFixed(1),
+          tiempo_reaccion: Math.floor(Math.random() * 1500) + 500,
+          precision_respuestas: +(Math.random() * 100).toFixed(1),
+          atencion_sostenida: +(Math.random() * 10).toFixed(1),
+          fatiga_cognitiva: Math.floor(Math.random() * 5) + 1,
+          fecha: new Date().toISOString()
+        };
+        simulatedData.push(data);
+      }
 
-    toast.success('Archivo de ejemplo descargado');
+      setGeneratedData(simulatedData);
+      toast.success(`${count} registros simulados generados exitosamente`);
+    } catch (error) {
+      console.error('Error generating simulated data:', error);
+      toast.error('Error al generar datos simulados');
+    }
+  };
+
+  const downloadGeneratedCSV = () => {
+    if (!generatedData || generatedData.length === 0) {
+      toast.error('No hay datos generados para descargar');
+      return;
+    }
+
+    try {
+      const headers = expectedHeaders;
+      const csvContent = [
+        headers.join(','),
+        ...generatedData.map(result => 
+          headers.map(header => {
+            const value = result[header as keyof typeof result];
+            return value !== undefined && value !== null ? value : 0;
+          }).join(',')
+        )
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `datos_simulados_${generatedData.length}_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('CSV de datos simulados descargado exitosamente');
+    } catch (error) {
+      console.error('Error downloading CSV:', error);
+      toast.error('Error al descargar el archivo CSV');
+    }
   };
 
   const loadDataToAnalysis = () => {
     if (!csvData || !csvData.isValid) return;
 
-    // Convertir datos CSV a formato requerido
     const processedData = csvData.data.map(row => {
       const result: any = {};
       csvData.headers.forEach((header, index) => {
@@ -153,7 +199,6 @@ const DatasetUploader = () => {
       return result;
     });
 
-    // Guardar en localStorage para que esté disponible en otras pestañas
     localStorage.setItem('uploaded_dataset', JSON.stringify(processedData));
     localStorage.setItem('dataset_upload_time', new Date().toISOString());
     
@@ -194,13 +239,47 @@ const DatasetUploader = () => {
             </label>
           </div>
 
-          {/* Sample download */}
-          <div className="flex justify-center">
-            <Button onClick={downloadSampleCSV} variant="outline">
-              <FileText className="h-4 w-4 mr-2" />
-              Descargar CSV de Ejemplo
-            </Button>
-          </div>
+          {/* Simulated Data Generation */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Generación de Datos Simulados</CardTitle>
+              <CardDescription>
+                Genere datos aleatorios para pruebas del modelo de IA.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <Label htmlFor="dataCount">Cantidad de datos simulados:</Label>
+                <Input
+                  id="dataCount"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={simulatedDataCount}
+                  onChange={(e) => setSimulatedDataCount(e.target.value)}
+                  placeholder="Ej: 100"
+                  className="w-32"
+                />
+                <Button onClick={generateSimulatedData} disabled={!simulatedDataCount}>
+                  Generar Datos
+                </Button>
+                {generatedData && (
+                  <Button onClick={downloadGeneratedCSV} className="bg-green-600 hover:bg-green-700">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Descargar CSV
+                  </Button>
+                )}
+              </div>
+              <p className="text-sm text-gray-600">
+                Los datos generados son aleatorios y no corresponden a evaluaciones reales.
+              </p>
+              {generatedData && (
+                <p className="text-sm text-green-600 font-medium">
+                  {generatedData.length} registros generados listos para descargar
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Validation Results */}
           {csvData && (

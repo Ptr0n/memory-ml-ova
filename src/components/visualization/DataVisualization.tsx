@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts';
-import { BarChart3, TrendingUp, Users, RefreshCw } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ScatterChart, Scatter, PieChart, Pie, Cell } from 'recharts';
+import { BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon, Users, Eye } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface TestResult {
   participante_id: string;
@@ -20,8 +21,8 @@ interface TestResult {
 }
 
 const DataVisualization = () => {
-  const [testResults, setTestResults] = useState<TestResult[]>([]);
-  const [csvDatasets, setCsvDatasets] = useState<any[]>([]);
+  const [testData, setTestData] = useState<TestResult[]>([]);
+  const [selectedChart, setSelectedChart] = useState<'bar' | 'line' | 'scatter' | 'pie'>('bar');
 
   useEffect(() => {
     loadData();
@@ -29,378 +30,334 @@ const DataVisualization = () => {
 
   const loadData = () => {
     try {
-      const storedTestResults = JSON.parse(localStorage.getItem('test_results') || '[]');
-      const storedCsvDatasets = JSON.parse(localStorage.getItem('csv_datasets') || '[]');
+      const testResults = JSON.parse(localStorage.getItem('test_results') || '[]');
+      const uploadedData = JSON.parse(localStorage.getItem('uploaded_dataset') || '[]');
+      const combinedData = [...testResults, ...uploadedData];
       
-      setTestResults(storedTestResults);
-      setCsvDatasets(storedCsvDatasets);
+      // Filtrar datos válidos
+      const validData = combinedData.filter(item => 
+        item && 
+        typeof item.memoria_visual === 'number' && 
+        typeof item.memoria_trabajo === 'number' &&
+        typeof item.atencion_sostenida === 'number' &&
+        !isNaN(item.memoria_visual) && 
+        !isNaN(item.memoria_trabajo) &&
+        !isNaN(item.atencion_sostenida)
+      );
+      
+      setTestData(validData);
+      
+      if (validData.length === 0) {
+        toast.info('No hay datos válidos para visualizar. Complete algunas evaluaciones primero.');
+      }
     } catch (error) {
       console.error('Error loading data:', error);
-      setTestResults([]);
-      setCsvDatasets([]);
+      setTestData([]);
+      toast.error('Error al cargar datos para visualización');
     }
   };
 
-  const getMemoryDistribution = () => {
-    if (testResults.length === 0) return [];
-
-    try {
-      const distribution = { bajo: 0, medio: 0, alto: 0 };
-      
-      testResults.forEach(result => {
-        const avgMemory = (
-          (result.memoria_inmediata || 0) + 
-          (result.memoria_trabajo || 0) + 
-          (result.memoria_visual || 0)
-        ) / 3;
-        
-        if (avgMemory < 4.5) distribution.bajo++;
-        else if (avgMemory <= 7.0) distribution.medio++;
-        else distribution.alto++;
-      });
-
-      return [
-        { name: 'Bajo (< 4.5)', value: distribution.bajo, fill: '#ef4444' },
-        { name: 'Medio (4.5-7.0)', value: distribution.medio, fill: '#f59e0b' },
-        { name: 'Alto (> 7.0)', value: distribution.alto, fill: '#10b981' }
-      ];
-    } catch (error) {
-      console.error('Error calculating memory distribution:', error);
-      return [];
-    }
+  const processDataForBarChart = () => {
+    if (testData.length === 0) return [];
+    
+    return testData.slice(0, 10).map((result, index) => ({
+      name: `Persona ${index + 1}`,
+      'Memoria Visual': +(result.memoria_visual || 0).toFixed(1),
+      'Memoria Trabajo': +(result.memoria_trabajo || 0).toFixed(1),
+      'Atención Sostenida': +(result.atencion_sostenida || 0).toFixed(1),
+      'Memoria Inmediata': +(result.memoria_inmediata || 0).toFixed(1)
+    }));
   };
 
-  const getAgeGroupPerformance = () => {
-    if (testResults.length === 0) return [];
-
-    try {
-      const ageGroups: { [key: string]: { total: number, count: number } } = {};
-      
-      testResults.forEach(result => {
-        const age = result.edad || 25;
-        let group = '';
-        
-        if (age < 30) group = '18-29';
-        else if (age < 40) group = '30-39';
-        else if (age < 50) group = '40-49';
-        else if (age < 60) group = '50-59';
-        else group = '60+';
-
-        if (!ageGroups[group]) {
-          ageGroups[group] = { total: 0, count: 0 };
-        }
-
-        const avgMemory = (
-          (result.memoria_inmediata || 0) + 
-          (result.memoria_trabajo || 0) + 
-          (result.memoria_visual || 0)
-        ) / 3;
-
-        ageGroups[group].total += avgMemory;
-        ageGroups[group].count++;
-      });
-
-      return Object.keys(ageGroups).map(group => ({
-        grupo: group,
-        promedio: ageGroups[group].count > 0 ? 
-          (ageGroups[group].total / ageGroups[group].count).toFixed(1) : 0
-      }));
-    } catch (error) {
-      console.error('Error calculating age group performance:', error);
-      return [];
-    }
+  const processDataForLineChart = () => {
+    if (testData.length === 0) return [];
+    
+    const sortedData = [...testData]
+      .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+      .slice(0, 15);
+    
+    return sortedData.map((result, index) => ({
+      evaluacion: index + 1,
+      'Promedio Memoria': +((
+        (result.memoria_visual || 0) + 
+        (result.memoria_trabajo || 0) + 
+        (result.atencion_sostenida || 0) + 
+        (result.memoria_inmediata || 0)
+      ) / 4).toFixed(1),
+      'Precisión': +(result.precision_respuestas || 0).toFixed(1)
+    }));
   };
 
-  const getEducationLevelComparison = () => {
-    if (testResults.length === 0) return [];
-
-    try {
-      const educationGroups: { [key: number]: { total: number, count: number } } = {};
-      
-      testResults.forEach(result => {
-        const level = result.nivel_educacion || 2;
-        
-        if (!educationGroups[level]) {
-          educationGroups[level] = { total: 0, count: 0 };
-        }
-
-        const avgMemory = (
-          (result.memoria_inmediata || 0) + 
-          (result.memoria_trabajo || 0) + 
-          (result.memoria_visual || 0)
-        ) / 3;
-
-        educationGroups[level].total += avgMemory;
-        educationGroups[level].count++;
-      });
-
-      return Object.keys(educationGroups).map(level => {
-        const levelNum = parseInt(level);
-        const labelMap = { 1: 'Básico', 2: 'Medio', 3: 'Superior' };
-        
-        return {
-          nivel: labelMap[levelNum as keyof typeof labelMap] || 'Desconocido',
-          promedio: educationGroups[levelNum].count > 0 ? 
-            parseFloat((educationGroups[levelNum].total / educationGroups[levelNum].count).toFixed(1)) : 0
-        };
-      });
-    } catch (error) {
-      console.error('Error calculating education level comparison:', error);
-      return [];
-    }
+  const processDataForScatterChart = () => {
+    if (testData.length === 0) return [];
+    
+    return testData.slice(0, 20).map((result, index) => ({
+      x: result.edad || 0,
+      y: +((result.memoria_visual + result.memoria_trabajo + result.atencion_sostenida) / 3 || 0).toFixed(1),
+      name: `Participante ${index + 1}`
+    }));
   };
 
-  const getMemoryScoresComparison = () => {
-    if (testResults.length === 0) return [];
+  const processDataForPieChart = () => {
+    if (testData.length === 0) return [];
+    
+    const educationLevels = testData.reduce((acc, result) => {
+      const level = result.nivel_educacion || 1;
+      const levelName = level === 1 ? 'Básico' : level === 2 ? 'Medio' : 'Superior';
+      acc[levelName] = (acc[levelName] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
 
-    try {
-      return testResults.slice(0, 10).map((result, index) => ({
-        participante: `Persona ${index + 1}`,
-        memoria_visual: result.memoria_visual || 0,
-        memoria_trabajo: result.memoria_trabajo || 0,
-        memoria_inmediata: result.memoria_inmediata || 0,
-        atencion_sostenida: result.atencion_sostenida || 0
-      }));
-    } catch (error) {
-      console.error('Error calculating memory scores comparison:', error);
-      return [];
-    }
+    return Object.entries(educationLevels).map(([name, value]) => ({
+      name,
+      value,
+      percentage: ((value / testData.length) * 100).toFixed(1)
+    }));
   };
 
-  const getCorrelationData = () => {
-    if (testResults.length === 0) return [];
+  const getAverageScores = () => {
+    if (testData.length === 0) return null;
+    
+    const validResults = testData.filter(result => 
+      !isNaN(result.memoria_visual) && 
+      !isNaN(result.memoria_trabajo) && 
+      !isNaN(result.atencion_sostenida) &&
+      !isNaN(result.memoria_inmediata)
+    );
+    
+    if (validResults.length === 0) return null;
 
-    try {
-      return testResults.map(result => ({
-        edad: result.edad || 25,
-        memoria_promedio: (
-          (result.memoria_inmediata || 0) + 
-          (result.memoria_trabajo || 0) + 
-          (result.memoria_visual || 0)
-        ) / 3
-      }));
-    } catch (error) {
-      console.error('Error calculating correlation data:', error);
-      return [];
-    }
+    return {
+      memoria_visual: +(validResults.reduce((sum, r) => sum + (r.memoria_visual || 0), 0) / validResults.length).toFixed(1),
+      memoria_trabajo: +(validResults.reduce((sum, r) => sum + (r.memoria_trabajo || 0), 0) / validResults.length).toFixed(1),
+      atencion_sostenida: +(validResults.reduce((sum, r) => sum + (r.atencion_sostenida || 0), 0) / validResults.length).toFixed(1),
+      memoria_inmediata: +(validResults.reduce((sum, r) => sum + (r.memoria_inmediata || 0), 0) / validResults.length).toFixed(1),
+      precision_promedio: +(validResults.reduce((sum, r) => sum + (r.precision_respuestas || 0), 0) / validResults.length).toFixed(1)
+    };
   };
 
-  const getPerformanceTrend = () => {
-    if (testResults.length === 0) return [];
+  const barData = processDataForBarChart();
+  const lineData = processDataForLineChart();
+  const scatterData = processDataForScatterChart();
+  const pieData = processDataForPieChart();
+  const averages = getAverageScores();
 
-    try {
-      const sortedResults = [...testResults]
-        .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
-        .slice(-30); // Últimos 30 resultados
-
-      return sortedResults.map((result, index) => ({
-        test: index + 1,
-        memoria_promedio: (
-          (result.memoria_inmediata || 0) + 
-          (result.memoria_trabajo || 0) + 
-          (result.memoria_visual || 0)
-        ) / 3,
-        precision: result.precision_respuestas || 0
-      }));
-    } catch (error) {
-      console.error('Error calculating performance trend:', error);
-      return [];
-    }
-  };
-
-  const memoryDistribution = getMemoryDistribution();
-  const ageGroupPerformance = getAgeGroupPerformance();
-  const educationComparison = getEducationLevelComparison();
-  const memoryScoresComparison = getMemoryScoresComparison();
-  const correlationData = getCorrelationData();
-  const performanceTrend = getPerformanceTrend();
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <BarChart3 className="h-6 w-6 text-blue-600" />
-              <span>Visualización de Datos</span>
-            </div>
-            <Button onClick={loadData} variant="outline" size="sm">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Actualizar
-            </Button>
+          <CardTitle className="flex items-center space-x-2">
+            <BarChart3 className="h-6 w-6 text-blue-600" />
+            <span>Visualización de Datos</span>
           </CardTitle>
           <CardDescription>
-            Análisis visual de los resultados de las evaluaciones de memoria cognitiva.
-            Datos actuales: {testResults.length} evaluaciones y {csvDatasets.length} datasets CSV.
+            Análisis visual de los resultados de evaluaciones de memoria cognitiva.
           </CardDescription>
         </CardHeader>
       </Card>
 
-      {testResults.length === 0 ? (
+      {testData.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
-            <Users className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-            <p className="text-gray-500 mb-2">No hay datos de evaluaciones disponibles</p>
+            <Eye className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+            <p className="text-gray-500 mb-2">No hay datos disponibles para visualizar.</p>
             <p className="text-sm text-gray-400">
-              Complete algunas evaluaciones o importe datos CSV para ver las visualizaciones.
+              Complete algunas evaluaciones o cargue un dataset CSV para ver las visualizaciones.
             </p>
+            <Button onClick={loadData} className="mt-4">
+              Recargar Datos
+            </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6">
-          {/* Distribución de Capacidades de Memoria */}
+        <>
+          {/* Statistics Cards */}
+          {averages && (
+            <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-2">
+                    <Users className="h-8 w-8 text-blue-600" />
+                    <div>
+                      <p className="text-2xl font-bold">{testData.length}</p>
+                      <p className="text-sm text-gray-600">Evaluaciones</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-2">
+                    <div className="h-8 w-8 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
+                      V
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{averages.memoria_visual}</p>
+                      <p className="text-sm text-gray-600">M. Visual Prom.</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-2">
+                    <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                      T
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{averages.memoria_trabajo}</p>
+                      <p className="text-sm text-gray-600">M. Trabajo Prom.</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-2">
+                    <div className="h-8 w-8 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold">
+                      A
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{averages.atencion_sostenida}</p>
+                      <p className="text-sm text-gray-600">Atención Prom.</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-2">
+                    <div className="h-8 w-8 bg-red-600 rounded-full flex items-center justify-center text-white font-bold">
+                      P
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{averages.precision_promedio}%</p>
+                      <p className="text-sm text-gray-600">Precisión Prom.</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Chart Selection */}
           <Card>
             <CardHeader>
-              <CardTitle>Distribución de Capacidades de Memoria</CardTitle>
-              <CardDescription>
-                Clasificación de participantes según su nivel de memoria promedio
-              </CardDescription>
+              <CardTitle>Seleccionar Tipo de Gráfico</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={memoryDistribution}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {memoryDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => setSelectedChart('bar')}
+                  variant={selectedChart === 'bar' ? 'default' : 'outline'}
+                  className="flex items-center space-x-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span>Barras</span>
+                </Button>
+                <Button
+                  onClick={() => setSelectedChart('line')}
+                  variant={selectedChart === 'line' ? 'default' : 'outline'}
+                  className="flex items-center space-x-2"
+                >
+                  <LineChartIcon className="h-4 w-4" />
+                  <span>Líneas</span>
+                </Button>
+                <Button
+                  onClick={() => setSelectedChart('scatter')}
+                  variant={selectedChart === 'scatter' ? 'default' : 'outline'}
+                  className="flex items-center space-x-2"
+                >
+                  <Users className="h-4 w-4" />
+                  <span>Dispersión</span>
+                </Button>
+                <Button
+                  onClick={() => setSelectedChart('pie')}
+                  variant={selectedChart === 'pie' ? 'default' : 'outline'}
+                  className="flex items-center space-x-2"
+                >
+                  <PieChartIcon className="h-4 w-4" />
+                  <span>Circular</span>
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Comparación de Puntuaciones de Memoria */}
+          {/* Charts */}
           <Card>
             <CardHeader>
-              <CardTitle>Comparación de Puntuaciones de Memoria</CardTitle>
-              <CardDescription>
-                Comparación de diferentes tipos de memoria por participante (primeros 10)
-              </CardDescription>
+              <CardTitle>
+                {selectedChart === 'bar' && 'Comparación de Puntuaciones de Memoria'}
+                {selectedChart === 'line' && 'Tendencia de Rendimiento'}
+                {selectedChart === 'scatter' && 'Relación Edad vs Promedio de Memoria'}
+                {selectedChart === 'pie' && 'Distribución por Nivel Educativo'}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={memoryScoresComparison}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="participante" />
-                  <YAxis domain={[0, 10]} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="memoria_visual" fill="#8884d8" name="Memoria Visual" />
-                  <Bar dataKey="memoria_trabajo" fill="#82ca9d" name="Memoria de Trabajo" />
-                  <Bar dataKey="memoria_inmediata" fill="#ffc658" name="Memoria Inmediata" />
-                  <Bar dataKey="atencion_sostenida" fill="#ff7300" name="Atención Sostenida" />
-                </BarChart>
-              </ResponsiveContainer>
+              <div style={{ width: '100%', height: '400px' }}>
+                <ResponsiveContainer>
+                  {selectedChart === 'bar' && (
+                    <BarChart data={barData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis domain={[0, 10]} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Memoria Visual" fill="#8884d8" />
+                      <Bar dataKey="Memoria Trabajo" fill="#82ca9d" />
+                      <Bar dataKey="Atención Sostenida" fill="#ffc658" />
+                      <Bar dataKey="Memoria Inmediata" fill="#ff7300" />
+                    </BarChart>
+                  )}
+                  
+                  {selectedChart === 'line' && (
+                    <LineChart data={lineData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="evaluacion" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="Promedio Memoria" stroke="#8884d8" strokeWidth={2} />
+                      <Line type="monotone" dataKey="Precisión" stroke="#82ca9d" strokeWidth={2} />
+                    </LineChart>
+                  )}
+                  
+                  {selectedChart === 'scatter' && (
+                    <ScatterChart data={scatterData}>
+                      <CartesianGrid />
+                      <XAxis type="number" dataKey="x" name="Edad" unit=" años" />
+                      <YAxis type="number" dataKey="y" name="Promedio Memoria" unit="/10" />
+                      <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                      <Scatter name="Participantes" data={scatterData} fill="#8884d8" />
+                    </ScatterChart>
+                  )}
+                  
+                  {selectedChart === 'pie' && (
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percentage }) => `${name} (${percentage}%)`}
+                        outerRadius={120}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  )}
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
-
-          {/* Rendimiento por Grupo de Edad */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Rendimiento por Grupo de Edad</CardTitle>
-              <CardDescription>
-                Memoria promedio según diferentes grupos etarios
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={ageGroupPerformance}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="grupo" />
-                  <YAxis domain={[0, 10]} />
-                  <Tooltip />
-                  <Bar dataKey="promedio" fill="#3b82f6" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Comparación por Nivel Educativo */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Rendimiento por Nivel Educativo</CardTitle>
-              <CardDescription>
-                Comparación del rendimiento de memoria según el nivel educativo
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={educationComparison}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="nivel" />
-                  <YAxis domain={[0, 10]} />
-                  <Tooltip />
-                  <Bar dataKey="promedio" fill="#10b981" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Tendencia de Rendimiento */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Tendencia de Rendimiento</CardTitle>
-              <CardDescription>
-                Evolución del rendimiento de memoria y precisión en el tiempo (últimos 30 tests)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={performanceTrend}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="test" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="memoria_promedio" 
-                    stroke="#8884d8" 
-                    name="Memoria Promedio" 
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="precision" 
-                    stroke="#82ca9d" 
-                    name="Precisión (%)" 
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* Correlación Edad vs Memoria */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Correlación: Edad vs Memoria</CardTitle>
-              <CardDescription>
-                Relación entre la edad de los participantes y su rendimiento de memoria
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <ScatterChart>
-                  <CartesianGrid />
-                  <XAxis type="number" dataKey="edad" name="Edad" />
-                  <YAxis type="number" dataKey="memoria_promedio" name="Memoria Promedio" />
-                  <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-                  <Scatter name="Participantes" data={correlationData} fill="#8884d8" />
-                </ScatterChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
+        </>
       )}
     </div>
   );

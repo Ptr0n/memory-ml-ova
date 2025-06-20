@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Download, Upload, Users, BarChart3, Trash2, Eye, Lock, Brain, AlertTriangle } from 'lucide-react';
+import { Download, Upload, Users, BarChart3, Trash2, Eye, Lock, Brain, AlertTriangle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TestResult {
@@ -30,6 +29,7 @@ const AdminPanel = () => {
   const [selectedResults, setSelectedResults] = useState<string[]>([]);
   const [csvDatasets, setCsvDatasets] = useState<any[]>([]);
   const [simulatedDataCount, setSimulatedDataCount] = useState('');
+  const [generatedData, setGeneratedData] = useState<any[] | null>(null);
 
   // Model training states
   const [isTraining, setIsTraining] = useState(false);
@@ -179,6 +179,7 @@ const AdminPanel = () => {
 
   const clearCsvData = () => {
     if (window.confirm('¿Está seguro de que desea eliminar todos los datos CSV? Esta acción no se puede deshacer.')) {
+      localStorage.removeItem('uploaded_dataset');
       localStorage.removeItem('csv_datasets');
       setCsvDatasets([]);
       toast.success('Datos CSV eliminados');
@@ -199,33 +200,64 @@ const AdminPanel = () => {
           participante_id: `SIM_${Date.now()}_${i}`,
           edad: Math.floor(Math.random() * 60) + 20, // 20-80 años
           nivel_educacion: Math.floor(Math.random() * 3) + 1, // 1-3
-          memoria_inmediata: Math.random() * 10, // 0-10
-          memoria_trabajo: Math.random() * 10, // 0-10
-          memoria_visual: Math.random() * 10, // 0-10
+          memoria_inmediata: +(Math.random() * 10).toFixed(1), // 0-10
+          memoria_trabajo: +(Math.random() * 10).toFixed(1), // 0-10
+          memoria_visual: +(Math.random() * 10).toFixed(1), // 0-10
           tiempo_reaccion: Math.floor(Math.random() * 1500) + 500, // 500-2000ms
-          precision_respuestas: Math.random() * 100, // 0-100%
-          atencion_sostenida: Math.random() * 10, // 0-10
+          precision_respuestas: +(Math.random() * 100).toFixed(1), // 0-100%
+          atencion_sostenida: +(Math.random() * 10).toFixed(1), // 0-10
           fatiga_cognitiva: Math.floor(Math.random() * 5) + 1, // 1-5
           fecha: new Date().toISOString()
         };
         simulatedData.push(data);
       }
 
-      const existingDatasets = JSON.parse(localStorage.getItem('csv_datasets') || '[]');
-      existingDatasets.push({
-        name: `Datos_Simulados_${Date.now()}`,
-        data: simulatedData,
-        timestamp: new Date().toISOString()
-      });
-      
-      localStorage.setItem('csv_datasets', JSON.stringify(existingDatasets));
-      setCsvDatasets(existingDatasets);
-      
+      setGeneratedData(simulatedData);
       toast.success(`${count} registros simulados generados exitosamente`);
       setSimulatedDataCount('');
     } catch (error) {
       console.error('Error generating simulated data:', error);
       toast.error('Error al generar datos simulados');
+    }
+  };
+
+  const downloadGeneratedCSV = () => {
+    if (!generatedData || generatedData.length === 0) {
+      toast.error('No hay datos generados para descargar');
+      return;
+    }
+
+    try {
+      const headers = [
+        'participante_id', 'edad', 'nivel_educacion', 'memoria_inmediata',
+        'memoria_trabajo', 'memoria_visual', 'tiempo_reaccion', 'precision_respuestas',
+        'atencion_sostenida', 'fatiga_cognitiva', 'fecha'
+      ];
+
+      const csvContent = [
+        headers.join(','),
+        ...generatedData.map(result => 
+          headers.map(header => {
+            const value = result[header as keyof typeof result];
+            return value !== undefined && value !== null ? value : 0;
+          }).join(',')
+        )
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `datos_simulados_${generatedData.length}_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('CSV de datos simulados descargado exitosamente');
+    } catch (error) {
+      console.error('Error downloading CSV:', error);
+      toast.error('Error al descargar el archivo CSV');
     }
   };
 
@@ -469,10 +501,21 @@ const AdminPanel = () => {
                 <Button onClick={generateSimulatedData} disabled={!simulatedDataCount}>
                   Generar Datos
                 </Button>
+                {generatedData && (
+                  <Button onClick={downloadGeneratedCSV} className="bg-green-600 hover:bg-green-700">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Descargar CSV
+                  </Button>
+                )}
               </div>
               <p className="text-sm text-gray-600">
                 Los datos generados son aleatorios y no corresponden a evaluaciones reales.
               </p>
+              {generatedData && (
+                <p className="text-sm text-green-600 font-medium">
+                  {generatedData.length} registros generados listos para descargar
+                </p>
+              )}
             </CardContent>
           </Card>
 
