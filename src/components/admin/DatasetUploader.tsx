@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CSVData {
@@ -108,6 +109,19 @@ const DatasetUploader = () => {
     };
 
     reader.readAsText(file);
+  };
+
+  const clearUploadedData = () => {
+    setCsvData(null);
+    localStorage.removeItem('uploaded_dataset');
+    localStorage.removeItem('dataset_upload_time');
+    toast.success('Datos CSV eliminados exitosamente');
+    
+    // Reset file input
+    const fileInput = document.getElementById('csv-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
   };
 
   const generateSimulatedData = () => {
@@ -239,6 +253,16 @@ const DatasetUploader = () => {
             </label>
           </div>
 
+          {/* Clear uploaded data button */}
+          {csvData && (
+            <div className="flex justify-center">
+              <Button onClick={clearUploadedData} variant="destructive" className="bg-red-600 hover:bg-red-700">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Limpiar Datos CSV
+              </Button>
+            </div>
+          )}
+
           {/* Simulated Data Generation */}
           <Card>
             <CardHeader>
@@ -263,21 +287,18 @@ const DatasetUploader = () => {
                 <Button onClick={generateSimulatedData} disabled={!simulatedDataCount}>
                   Generar Datos
                 </Button>
-                {generatedData && (
+              </div>
+              {generatedData && (
+                <div className="flex justify-center">
                   <Button onClick={downloadGeneratedCSV} className="bg-green-600 hover:bg-green-700">
                     <FileText className="h-4 w-4 mr-2" />
-                    Descargar CSV
+                    Descargar CSV ({generatedData.length} registros)
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
               <p className="text-sm text-gray-600">
                 Los datos generados son aleatorios y no corresponden a evaluaciones reales.
               </p>
-              {generatedData && (
-                <p className="text-sm text-green-600 font-medium">
-                  {generatedData.length} registros generados listos para descargar
-                </p>
-              )}
             </CardContent>
           </Card>
 

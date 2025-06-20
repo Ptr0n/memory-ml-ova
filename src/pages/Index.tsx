@@ -3,9 +3,7 @@ import React, { useState } from 'react';
 import { Brain, BarChart3, Users, Settings, FileText, Play, Eye, Target, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import TestSmart from '@/components/tests/TestSmart';
-import TestMemoriaVisual from '@/components/tests/TestMemoriaVisual';
-import TestMemoriaTrabajo from '@/components/tests/TestMemoriaTrabajo';
+import TestCompleto from '@/components/tests/TestCompleto';
 import DatasetUploader from '@/components/admin/DatasetUploader';
 import AdminPanel from '@/components/admin/AdminPanel';
 import DataVisualization from '@/components/visualization/DataVisualization';
@@ -14,7 +12,6 @@ import ResourcesSection from '@/components/resources/ResourcesSection';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('inicio');
-  const [activeTestTab, setActiveTestTab] = useState('smart');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -136,7 +133,7 @@ const Index = () => {
                       <p><strong>Felipe Patrón</strong> - Investigador Principal</p>
                       <p><strong>Juan Angulo</strong> - Co-investigador</p>
                       <p className="text-sm text-gray-500 mt-4">
-                        Facultad de Ingeniería - Programa de Ingeniería de Sistemas
+                        Facultad de Educación - Licenciatura en Informática
                       </p>
                       <p className="text-sm text-gray-500">
                         Universidad de Córdoba - Montería, Colombia
@@ -203,44 +200,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="tests">
-            <div className="space-y-6">
-              {/* Test Selection */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-xl font-semibold mb-4">Seleccione una Evaluación</h2>
-                <p className="text-gray-600 mb-6">
-                  Elija el test neuropsicológico que desea realizar. Cada evaluación mide aspectos específicos de la memoria cognitiva.
-                </p>
-                
-                <Tabs value={activeTestTab} onValueChange={setActiveTestTab} className="w-full">
-                  <TabsList className="grid w-full grid-cols-1 md:grid-cols-3 mb-6">
-                    <TabsTrigger value="smart" className="flex items-center space-x-2">
-                      <Brain className="h-4 w-4" />
-                      <span>Test SMART</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="visual" className="flex items-center space-x-2">
-                      <Eye className="h-4 w-4" />
-                      <span>Memoria Visual</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="trabajo" className="flex items-center space-x-2">
-                      <Calculator className="h-4 w-4" />
-                      <span>Memoria de Trabajo</span>
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="smart">
-                    <TestSmart />
-                  </TabsContent>
-
-                  <TabsContent value="visual">
-                    <TestMemoriaVisual />
-                  </TabsContent>
-
-                  <TabsContent value="trabajo">
-                    <TestMemoriaTrabajo />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            </div>
+            <TestCompleto />
           </TabsContent>
 
           <TabsContent value="datos">
@@ -275,10 +235,13 @@ const Index = () => {
               <h3 className="text-xl font-bold">Universidad de Córdoba</h3>
             </div>
             <p className="text-gray-300 mb-2">
-              Universidad de Córdoba - Felipe Patrón y Juan Angulo - 2025
+              Facultad de Educación - Licenciatura en Informática
             </p>
-            <p className="text-sm text-gray-400">
-              Facultad de Ingeniería - Programa de Ingeniería de Sistemas
+            <p className="text-gray-300 mb-2">
+              Felipe Patrón y Juan Angulo
+            </p>
+            <p className="text-gray-300 mb-2">
+              2025
             </p>
             <p className="text-sm text-gray-400">
               Montería, Córdoba - Colombia
