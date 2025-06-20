@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Brain, Play, RotateCcw } from 'lucide-react';
+import { Brain, Play, RotateCcw, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Trial {
@@ -25,9 +25,10 @@ const TestMemoriaTrabajo = () => {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [startTime, setStartTime] = useState(0);
   const [isPractice, setIsPractice] = useState(false);
+  const [testCompleted, setTestCompleted] = useState(false);
 
-  const maxTrials = 10;
-  const practiceTrials = 2;
+  const maxTrials = 15; // Aumentado para más repeticiones
+  const practiceTrials = 3; // Aumentado para mejor práctica
 
   useEffect(() => {
     if (timeRemaining > 0) {
@@ -49,6 +50,7 @@ const TestMemoriaTrabajo = () => {
     setCurrentTrial(0);
     setTrials([]);
     setSequenceLength(3);
+    setTestCompleted(false);
     generateNewTrial();
   };
 
@@ -58,6 +60,7 @@ const TestMemoriaTrabajo = () => {
     setCurrentTrial(0);
     setTrials([]);
     setSequenceLength(3);
+    setTestCompleted(false);
     generateNewTrial();
   };
 
@@ -66,7 +69,7 @@ const TestMemoriaTrabajo = () => {
     setCurrentSequence(sequence);
     setUserInput('');
     setShowingSequence(true);
-    setTimeRemaining(sequenceLength * 1000 / 1000); // 1 second per digit
+    setTimeRemaining(Math.max(2, sequenceLength)); // Tiempo mínimo de 2 segundos
   };
 
   const submitAnswer = () => {
@@ -75,89 +78,112 @@ const TestMemoriaTrabajo = () => {
       return;
     }
 
-    const reactionTime = Date.now() - startTime;
-    const userNumbers = userInput.split('').map(Number);
-    const reversedSequence = [...currentSequence].reverse();
-    
-    const isCorrect = userNumbers.length === reversedSequence.length && 
-                      userNumbers.every((num, index) => num === reversedSequence[index]);
+    try {
+      const reactionTime = Date.now() - startTime;
+      const userNumbers = userInput.split('').map(Number).filter(n => !isNaN(n));
+      const reversedSequence = [...currentSequence].reverse();
+      
+      const isCorrect = userNumbers.length === reversedSequence.length && 
+                        userNumbers.every((num, index) => num === reversedSequence[index]);
 
-    const newTrial: Trial = {
-      sequence: currentSequence,
-      userInput,
-      isCorrect,
-      reactionTime
-    };
+      const newTrial: Trial = {
+        sequence: currentSequence,
+        userInput,
+        isCorrect,
+        reactionTime: Math.max(100, reactionTime) // Mínimo 100ms
+      };
 
-    const updatedTrials = [...trials, newTrial];
-    setTrials(updatedTrials);
+      const updatedTrials = [...trials, newTrial];
+      setTrials(updatedTrials);
 
-    if (isPractice) {
-      if (currentTrial < practiceTrials - 1) {
-        setCurrentTrial(currentTrial + 1);
-        generateNewTrial();
-        toast.success(isCorrect ? '¡Correcto!' : 'Incorrecto. Intente de nuevo.');
+      if (isPractice) {
+        if (currentTrial < practiceTrials - 1) {
+          setCurrentTrial(currentTrial + 1);
+          // Aumentar dificultad gradualmente en práctica
+          if (currentTrial === 1) setSequenceLength(4);
+          generateNewTrial();
+          toast.success(isCorrect ? '¡Correcto!' : 'Incorrecto. Intente de nuevo.');
+        } else {
+          toast.success('Práctica completada. ¡Ahora comience el test real!');
+        }
       } else {
-        toast.success('Práctica completada. ¡Ahora comience el test real!');
-        // Don't move to results, let user start main test
-      }
-    } else {
-      // Main test logic
-      if (isCorrect && sequenceLength < 7) {
-        // Increase difficulty every 2 correct answers
-        if ((updatedTrials.filter(t => t.isCorrect).length) % 2 === 0) {
-          setSequenceLength(sequenceLength + 1);
+        // Main test logic con dificultad progresiva
+        if (isCorrect && sequenceLength < 8) {
+          // Aumentar dificultad cada 3 respuestas correctas
+          const correctCount = updatedTrials.filter(t => t.isCorrect).length;
+          if (correctCount % 3 === 0) {
+            setSequenceLength(Math.min(8, sequenceLength + 1));
+          }
+        }
+
+        if (currentTrial < maxTrials - 1) {
+          setCurrentTrial(currentTrial + 1);
+          generateNewTrial();
+          toast.success(isCorrect ? '¡Correcto!' : 'Incorrecto');
+        } else {
+          setTestCompleted(true);
+          calculateResults(updatedTrials);
         }
       }
-
-      if (currentTrial < maxTrials - 1) {
-        setCurrentTrial(currentTrial + 1);
-        generateNewTrial();
-        toast.success(isCorrect ? '¡Correcto!' : 'Incorrecto');
-      } else {
-        calculateResults(updatedTrials);
-      }
+    } catch (error) {
+      console.error('Error processing answer:', error);
+      toast.error('Error al procesar la respuesta');
     }
   };
 
   const calculateResults = (finalTrials: Trial[]) => {
-    const correctAnswers = finalTrials.filter(t => t.isCorrect).length;
-    const accuracy = (correctAnswers / finalTrials.length) * 100;
-    const avgReactionTime = finalTrials.reduce((sum, t) => sum + t.reactionTime, 0) / finalTrials.length;
-    
-    // Calculate working memory score based on performance
-    let memoryScore = 0;
-    if (accuracy >= 90) memoryScore = 9 + (accuracy - 90) / 10;
-    else if (accuracy >= 80) memoryScore = 8 + (accuracy - 80) / 10;
-    else if (accuracy >= 70) memoryScore = 7 + (accuracy - 70) / 10;
-    else if (accuracy >= 60) memoryScore = 6 + (accuracy - 60) / 10;
-    else if (accuracy >= 50) memoryScore = 5 + (accuracy - 50) / 10;
-    else memoryScore = accuracy / 10;
+    try {
+      if (finalTrials.length === 0) {
+        toast.error('No hay datos suficientes para calcular resultados');
+        return;
+      }
 
-    memoryScore = Math.min(10, Math.max(0, memoryScore));
+      const correctAnswers = finalTrials.filter(t => t.isCorrect).length;
+      const accuracy = (correctAnswers / finalTrials.length) * 100;
+      const avgReactionTime = finalTrials.reduce((sum, t) => sum + (t.reactionTime || 1000), 0) / finalTrials.length;
+      
+      // Cálculo más robusto del puntaje de memoria
+      let memoryScore = 0;
+      if (accuracy >= 90) memoryScore = 9 + Math.min(1, (accuracy - 90) / 10);
+      else if (accuracy >= 80) memoryScore = 8 + (accuracy - 80) / 10;
+      else if (accuracy >= 70) memoryScore = 7 + (accuracy - 70) / 10;
+      else if (accuracy >= 60) memoryScore = 6 + (accuracy - 60) / 10;
+      else if (accuracy >= 50) memoryScore = 5 + (accuracy - 50) / 10;
+      else memoryScore = Math.max(0, accuracy / 10);
 
-    // Save results
-    const result = {
-      participante_id: `WM_${Date.now()}`,
-      memoria_trabajo: memoryScore,
-      precision_respuestas: accuracy,
-      tiempo_reaccion: Math.round(avgReactionTime),
-      memoria_inmediata: memoryScore * 0.9, // Related measure
-      atencion_sostenida: Math.max(0, 10 - (avgReactionTime - 1000) / 200), // Attention score based on reaction time
-      fecha: new Date().toISOString(),
-      // Default values for required fields
-      edad: 25,
-      nivel_educacion: 2,
-      memoria_visual: 7.5,
-      fatiga_cognitiva: 2
-    };
+      memoryScore = Math.min(10, Math.max(0, memoryScore));
 
-    const existingResults = JSON.parse(localStorage.getItem('test_results') || '[]');
-    existingResults.push(result);
-    localStorage.setItem('test_results', JSON.stringify(existingResults));
+      // Cálculo de atención sostenida basado en tiempo de reacción
+      const normalizedReactionTime = Math.max(500, Math.min(3000, avgReactionTime));
+      const attentionScore = Math.max(0, 10 - ((normalizedReactionTime - 500) / 250));
 
-    setTestPhase('results');
-    toast.success(`Test completado. Puntuación: ${memoryScore.toFixed(1)}/10`);
+      // Save results con validaciones
+      const result = {
+        participante_id: `WM_${Date.now()}`,
+        memoria_trabajo: parseFloat(memoryScore.toFixed(2)),
+        precision_respuestas: parseFloat(accuracy.toFixed(2)),
+        tiempo_reaccion: Math.round(avgReactionTime),
+        memoria_inmediata: parseFloat((memoryScore * 0.9).toFixed(2)), // Related measure
+        atencion_sostenida: parseFloat(attentionScore.toFixed(2)),
+        fecha: new Date().toISOString(),
+        // Default values for required fields
+        edad: 25,
+        nivel_educacion: 2,
+        memoria_visual: 7.5,
+        fatiga_cognitiva: Math.min(5, Math.max(1, Math.ceil(avgReactionTime / 600)))
+      };
+
+      const existingResults = JSON.parse(localStorage.getItem('test_results') || '[]');
+      existingResults.push(result);
+      localStorage.setItem('test_results', JSON.stringify(existingResults));
+
+      setTestPhase('results');
+      toast.success(`Test completado. Puntuación: ${memoryScore.toFixed(1)}/10`);
+    } catch (error) {
+      console.error('Error calculating results:', error);
+      toast.error('Error al calcular resultados');
+      setTestPhase('results'); // Mostrar resultados parciales
+    }
   };
 
   const resetTest = () => {
@@ -170,6 +196,7 @@ const TestMemoriaTrabajo = () => {
     setSequenceLength(3);
     setTimeRemaining(0);
     setIsPractice(false);
+    setTestCompleted(false);
   };
 
   const getProgress = () => {
@@ -188,6 +215,17 @@ const TestMemoriaTrabajo = () => {
       return `Ensayo ${currentTrial + 1} de ${maxTrials} | Longitud: ${sequenceLength}`;
     }
     return '';
+  };
+
+  const calculateFinalStats = () => {
+    if (trials.length === 0) return { correctAnswers: 0, accuracy: 0, avgReactionTime: 0, maxLength: 3 };
+    
+    const correctAnswers = trials.filter(t => t.isCorrect).length;
+    const accuracy = (correctAnswers / trials.length) * 100;
+    const avgReactionTime = trials.reduce((sum, t) => sum + (t.reactionTime || 1000), 0) / trials.length;
+    const maxLength = Math.max(...trials.map((_, index) => Math.min(8, 3 + Math.floor(index / 3))));
+    
+    return { correctAnswers, accuracy, avgReactionTime, maxLength };
   };
 
   return (
@@ -235,10 +273,18 @@ const TestMemoriaTrabajo = () => {
               <p><strong>Características del test:</strong></p>
               <ul className="list-disc pl-6 space-y-1">
                 <li>Comenzará con secuencias de 3 números</li>
-                <li>La dificultad aumentará gradualmente</li>
+                <li>La dificultad aumentará gradualmente hasta 8 números</li>
+                <li>Se realizarán {maxTrials} ensayos principales</li>
                 <li>Se mide tanto la precisión como el tiempo de respuesta</li>
-                <li>Primero realizará 2 ensayos de práctica</li>
+                <li>Primero realizará {practiceTrials} ensayos de práctica</li>
               </ul>
+
+              <div className="bg-yellow-50 p-4 rounded-lg flex items-start space-x-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                <p className="text-sm text-yellow-800">
+                  <strong>Advertencia:</strong> Debe completar todos los tests para obtener resultados válidos.
+                </p>
+              </div>
             </div>
             
             <div className="flex justify-center space-x-4">
@@ -260,7 +306,7 @@ const TestMemoriaTrabajo = () => {
             <CardDescription>
               {showingSequence ? 
                 `Longitud de secuencia: ${sequenceLength} números` :
-                `Ejemplo: si vio 1-2-3, escriba 321`
+                `Ejemplo: si vio ${currentSequence.join('-')}, escriba ${[...currentSequence].reverse().join('')}`
               }
             </CardDescription>
           </CardHeader>
@@ -275,28 +321,30 @@ const TestMemoriaTrabajo = () => {
                   ))}
                 </div>
                 <div className="text-lg font-semibold text-purple-600">
-                  Tiempo restante: {timeRemaining}s
+                  Memorice estos números: {timeRemaining}s
                 </div>
-                <Progress value={(timeRemaining / (sequenceLength * 1)) * 100} className="w-full" />
+                <Progress value={(timeRemaining / Math.max(2, sequenceLength)) * 100} className="w-full" />
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="text-center">
-                  <p className="mb-4 text-gray-600">Secuencia vista: {currentSequence.join(' - ')}</p>
                   <p className="mb-4 font-semibold">Escriba en orden inverso:</p>
                   <Input
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value.replace(/[^0-9]/g, ''))}
-                    placeholder="Ej: 321"
+                    placeholder={`Ingrese ${sequenceLength} dígitos`}
                     className="text-center text-xl font-bold max-w-xs mx-auto"
                     maxLength={sequenceLength}
                     autoFocus
                     onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === 'Enter' && userInput.length === sequenceLength) {
                         submitAnswer();
                       }
                     }}
                   />
+                  <p className="text-sm text-gray-500 mt-2">
+                    Ingrese exactamente {sequenceLength} dígitos
+                  </p>
                 </div>
                 <div className="flex justify-center">
                   <Button 
@@ -329,7 +377,7 @@ const TestMemoriaTrabajo = () => {
                 </p>
               </div>
               <p className="text-sm text-gray-600">
-                Ahora comenzará el test real. ¡Haga su mejor esfuerzo!
+                Ahora comenzará el test real con {maxTrials} ensayos. ¡Haga su mejor esfuerzo!
               </p>
             </div>
             <div className="flex justify-center space-x-4">
@@ -354,54 +402,79 @@ const TestMemoriaTrabajo = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="text-center space-y-4">
-              <div className="text-4xl font-bold text-purple-600">
-                {trials.length > 0 ? 
-                  (((trials.filter(t => t.isCorrect).length / trials.length) * 100 / 10)).toFixed(1) : 
-                  '0.0'
-                }/10
-              </div>
-              <p className="text-lg font-semibold">Puntuación de Memoria de Trabajo</p>
-              
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Respuestas Correctas</p>
-                  <p className="text-xl font-bold text-purple-600">
-                    {trials.filter(t => t.isCorrect).length} de {trials.length}
-                  </p>
-                </div>
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Precisión</p>
-                  <p className="text-xl font-bold text-blue-600">
-                    {trials.length > 0 ? ((trials.filter(t => t.isCorrect).length / trials.length) * 100).toFixed(1) : '0'}%
-                  </p>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Tiempo Promedio</p>
-                  <p className="text-xl font-bold text-green-600">
-                    {trials.length > 0 ? Math.round(trials.reduce((sum, t) => sum + t.reactionTime, 0) / trials.length) : 0}ms
-                  </p>
-                </div>
-                <div className="bg-orange-50 p-4 rounded-lg">
-                  <p className="text-sm text-gray-600">Longitud Máxima</p>
-                  <p className="text-xl font-bold text-orange-600">
-                    {Math.max(...trials.map((_, index) => Math.min(7, 3 + Math.floor(index / 2))))} números
-                  </p>
-                </div>
-              </div>
+              {testCompleted ? (
+                <>
+                  <div className="text-4xl font-bold text-purple-600">
+                    {(() => {
+                      const stats = calculateFinalStats();
+                      const score = Math.min(10, Math.max(0, (stats.accuracy / 100) * 10));
+                      return score.toFixed(1);
+                    })()}/10
+                  </div>
+                  <p className="text-lg font-semibold">Puntuación de Memoria de Trabajo</p>
+                  
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {(() => {
+                      const stats = calculateFinalStats();
+                      return (
+                        <>
+                          <div className="bg-purple-50 p-4 rounded-lg">
+                            <p className="text-sm text-gray-600">Respuestas Correctas</p>
+                            <p className="text-xl font-bold text-purple-600">
+                              {stats.correctAnswers} de {trials.length}
+                            </p>
+                          </div>
+                          <div className="bg-blue-50 p-4 rounded-lg">
+                            <p className="text-sm text-gray-600">Precisión</p>
+                            <p className="text-xl font-bold text-blue-600">
+                              {stats.accuracy.toFixed(1)}%
+                            </p>
+                          </div>
+                          <div className="bg-green-50 p-4 rounded-lg">
+                            <p className="text-sm text-gray-600">Tiempo Promedio</p>
+                            <p className="text-xl font-bold text-green-600">
+                              {Math.round(stats.avgReactionTime)}ms
+                            </p>
+                          </div>
+                          <div className="bg-orange-50 p-4 rounded-lg">
+                            <p className="text-sm text-gray-600">Longitud Máxima</p>
+                            <p className="text-xl font-bold text-orange-600">
+                              {stats.maxLength} números
+                            </p>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
 
-              <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg">
-                <p><strong>Interpretación:</strong></p>
-                <p>
-                  {trials.filter(t => t.isCorrect).length / trials.length >= 0.8 ? 
-                    'Excelente capacidad de memoria de trabajo' :
-                   trials.filter(t => t.isCorrect).length / trials.length >= 0.6 ? 
-                    'Buena capacidad de memoria de trabajo' :
-                   trials.filter(t => t.isCorrect).length / trials.length >= 0.4 ? 
-                    'Capacidad de memoria de trabajo promedio' :
-                    'Se recomienda evaluación adicional'
-                  }
-                </p>
-              </div>
+                  <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg">
+                    <p><strong>Interpretación:</strong></p>
+                    <p>
+                      {(() => {
+                        const stats = calculateFinalStats();
+                        const accuracy = stats.correctAnswers / trials.length;
+                        if (accuracy >= 0.8) return 'Excelente capacidad de memoria de trabajo';
+                        if (accuracy >= 0.6) return 'Buena capacidad de memoria de trabajo';
+                        if (accuracy >= 0.4) return 'Capacidad de memoria de trabajo promedio';
+                        return 'Se recomienda evaluación adicional';
+                      })()}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center space-y-4">
+                  <div className="text-2xl font-bold text-yellow-600">Test Incompleto</div>
+                  <p className="text-gray-600">
+                    El test no se completó correctamente. Algunos resultados pueden no estar disponibles.
+                  </p>
+                  <div className="bg-yellow-50 p-4 rounded-lg flex items-center space-x-2">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                    <p className="text-sm text-yellow-800">
+                      Para obtener resultados válidos, complete todos los tests requeridos.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-center space-x-4">

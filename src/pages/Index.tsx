@@ -27,7 +27,8 @@ const Index = () => {
                 <Brain className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-800">OVA Memoria Cognitiva</h1>
+                <h1 className="text-2xl font-bold text-gray-800">Universidad de Córdoba</h1>
+                <p className="text-lg font-semibold text-blue-600">OVA Memoria Cognitiva</p>
                 <p className="text-sm text-gray-600">Evaluación y Análisis con Inteligencia Artificial</p>
               </div>
             </div>
@@ -77,8 +78,9 @@ const Index = () => {
                   <div>
                     <h2 className="text-3xl font-bold mb-4">Bienvenido al OVA de Memoria Cognitiva</h2>
                     <p className="text-lg mb-6 text-blue-100">
-                      Plataforma educativa integral que combina tests neuropsicológicos validados con 
-                      análisis de inteligencia artificial para la evaluación de capacidades de memoria.
+                      Plataforma educativa integral desarrollada por la Universidad de Córdoba que combina 
+                      tests neuropsicológicos validados con análisis de inteligencia artificial para la 
+                      evaluación de capacidades de memoria.
                     </p>
                     <Button 
                       onClick={() => setActiveTab('tests')} 
@@ -91,7 +93,7 @@ const Index = () => {
                     <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
                       <div className="grid grid-cols-2 gap-4 text-center">
                         <div>
-                          <div className="text-2xl font-bold">4</div>
+                          <div className="text-2xl font-bold">3</div>
                           <div className="text-sm text-blue-100">Tests Disponibles</div>
                         </div>
                         <div>
@@ -112,6 +114,38 @@ const Index = () => {
                 </div>
               </div>
 
+              {/* Información Institucional */}
+              <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100">
+                <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">Universidad de Córdoba - Colombia</h3>
+                <div className="grid md:grid-cols-2 gap-8">
+                  <div>
+                    <h4 className="font-semibold text-lg mb-4 text-blue-600">Proyecto de Investigación</h4>
+                    <p className="text-gray-600 mb-4">
+                      Este Objeto Virtual de Aprendizaje (OVA) forma parte de un proyecto de investigación 
+                      desarrollado en la Universidad de Córdoba, enfocado en la evaluación cognitiva mediante 
+                      técnicas de inteligencia artificial.
+                    </p>
+                    <p className="text-gray-600">
+                      El sistema integra tests neuropsicológicos validados internacionalmente con modelos 
+                      de machine learning para proporcionar evaluaciones precisas de la capacidad de memoria.
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg mb-4 text-green-600">Autores</h4>
+                    <div className="space-y-2 text-gray-600">
+                      <p><strong>Felipe Patrón</strong> - Investigador Principal</p>
+                      <p><strong>Juan Angulo</strong> - Co-investigador</p>
+                      <p className="text-sm text-gray-500 mt-4">
+                        Facultad de Ingeniería - Programa de Ingeniería de Sistemas
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Universidad de Córdoba - Montería, Colombia
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Features */}
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-blue-100">
@@ -120,7 +154,7 @@ const Index = () => {
                   </div>
                   <h3 className="font-semibold text-lg mb-2">Tests Interactivos</h3>
                   <p className="text-gray-600">
-                    Implementación de tests neuropsicológicos validados: SMART, UDS, VMT-SP y Memoria de Trabajo.
+                    Implementación de tests neuropsicológicos validados: SMART, VMT-SP y Memoria de Trabajo.
                   </p>
                 </div>
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-green-100">
@@ -160,7 +194,7 @@ const Index = () => {
                     <div className="text-sm text-gray-600">Precisión del Modelo</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600 mb-2">4</div>
+                    <div className="text-2xl font-bold text-orange-600 mb-2">3</div>
                     <div className="text-sm text-gray-600">Tests Validados</div>
                   </div>
                 </div>
@@ -229,6 +263,29 @@ const Index = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-800 text-white py-8 mt-12">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-3 mb-4">
+              <div className="bg-gradient-to-r from-blue-600 to-green-600 p-2 rounded-lg">
+                <Brain className="h-6 w-6 text-white" />
+              </div>
+              <h3 className="text-xl font-bold">Universidad de Córdoba</h3>
+            </div>
+            <p className="text-gray-300 mb-2">
+              Universidad de Córdoba - Felipe Patrón y Juan Angulo - 2025
+            </p>
+            <p className="text-sm text-gray-400">
+              Facultad de Ingeniería - Programa de Ingeniería de Sistemas
+            </p>
+            <p className="text-sm text-gray-400">
+              Montería, Córdoba - Colombia
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

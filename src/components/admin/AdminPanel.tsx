@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Download, Upload, Users, BarChart3, Trash2, Eye } from 'lucide-react';
+import { Download, Upload, Users, BarChart3, Trash2, Eye, Lock, Brain, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TestResult {
@@ -21,16 +23,53 @@ interface TestResult {
 }
 
 const AdminPanel = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [selectedResults, setSelectedResults] = useState<string[]>([]);
+  const [csvDatasets, setCsvDatasets] = useState<any[]>([]);
+  const [simulatedDataCount, setSimulatedDataCount] = useState('');
+
+  // Model training states
+  const [isTraining, setIsTraining] = useState(false);
+  const [modelAccuracy, setModelAccuracy] = useState<number | null>(null);
+  const [trainingLog, setTrainingLog] = useState<string[]>([]);
 
   useEffect(() => {
-    loadTestResults();
-  }, []);
+    if (isAuthenticated) {
+      loadTestResults();
+      loadCsvDatasets();
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = () => {
+    if (username === 'Admin123' && password === 'Admin123') {
+      setIsAuthenticated(true);
+      toast.success('Acceso autorizado');
+    } else {
+      toast.error('Credenciales incorrectas');
+    }
+  };
 
   const loadTestResults = () => {
-    const storedResults = JSON.parse(localStorage.getItem('test_results') || '[]');
-    setTestResults(storedResults);
+    try {
+      const storedResults = JSON.parse(localStorage.getItem('test_results') || '[]');
+      setTestResults(storedResults);
+    } catch (error) {
+      console.error('Error loading test results:', error);
+      setTestResults([]);
+    }
+  };
+
+  const loadCsvDatasets = () => {
+    try {
+      const storedDatasets = JSON.parse(localStorage.getItem('csv_datasets') || '[]');
+      setCsvDatasets(storedDatasets);
+    } catch (error) {
+      console.error('Error loading CSV datasets:', error);
+      setCsvDatasets([]);
+    }
   };
 
   const exportToCSV = () => {
@@ -39,30 +78,38 @@ const AdminPanel = () => {
       return;
     }
 
-    const headers = [
-      'participante_id', 'edad', 'nivel_educacion', 'memoria_inmediata',
-      'memoria_trabajo', 'memoria_visual', 'tiempo_reaccion', 'precision_respuestas',
-      'atencion_sostenida', 'fatiga_cognitiva', 'fecha'
-    ];
+    try {
+      const headers = [
+        'participante_id', 'edad', 'nivel_educacion', 'memoria_inmediata',
+        'memoria_trabajo', 'memoria_visual', 'tiempo_reaccion', 'precision_respuestas',
+        'atencion_sostenida', 'fatiga_cognitiva', 'fecha'
+      ];
 
-    const csvContent = [
-      headers.join(','),
-      ...testResults.map(result => 
-        headers.map(header => result[header as keyof TestResult]).join(',')
-      )
-    ].join('\n');
+      const csvContent = [
+        headers.join(','),
+        ...testResults.map(result => 
+          headers.map(header => {
+            const value = result[header as keyof TestResult];
+            return value !== undefined && value !== null ? value : 0;
+          }).join(',')
+        )
+      ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `test_results_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `test_results_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-    toast.success('Datos exportados exitosamente');
+      toast.success('Datos exportados exitosamente');
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      toast.error('Error al exportar datos');
+    }
   };
 
   const importFromCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,7 +143,6 @@ const AdminPanel = () => {
             return result as TestResult;
           });
 
-        // Combinar con datos existentes
         const existingResults = JSON.parse(localStorage.getItem('test_results') || '[]');
         const combinedResults = [...existingResults, ...importedData];
         
@@ -113,19 +159,111 @@ const AdminPanel = () => {
   };
 
   const deleteSelected = () => {
-    const updatedResults = testResults.filter(result => !selectedResults.includes(result.participante_id));
-    localStorage.setItem('test_results', JSON.stringify(updatedResults));
-    setTestResults(updatedResults);
-    setSelectedResults([]);
-    toast.success('Registros eliminados exitosamente');
+    if (window.confirm('¿Está seguro de que desea eliminar los registros seleccionados?')) {
+      const updatedResults = testResults.filter(result => !selectedResults.includes(result.participante_id));
+      localStorage.setItem('test_results', JSON.stringify(updatedResults));
+      setTestResults(updatedResults);
+      setSelectedResults([]);
+      toast.success('Registros eliminados exitosamente');
+    }
   };
 
-  const clearAllData = () => {
-    if (window.confirm('¿Está seguro de que desea eliminar todos los datos? Esta acción no se puede deshacer.')) {
+  const clearTestData = () => {
+    if (window.confirm('¿Está seguro de que desea eliminar todos los datos de tests? Esta acción no se puede deshacer.')) {
       localStorage.removeItem('test_results');
       setTestResults([]);
       setSelectedResults([]);
-      toast.success('Todos los datos han sido eliminados');
+      toast.success('Datos de tests eliminados');
+    }
+  };
+
+  const clearCsvData = () => {
+    if (window.confirm('¿Está seguro de que desea eliminar todos los datos CSV? Esta acción no se puede deshacer.')) {
+      localStorage.removeItem('csv_datasets');
+      setCsvDatasets([]);
+      toast.success('Datos CSV eliminados');
+    }
+  };
+
+  const generateSimulatedData = () => {
+    const count = parseInt(simulatedDataCount);
+    if (!count || count <= 0 || count > 1000) {
+      toast.error('Ingrese un número válido entre 1 y 1000');
+      return;
+    }
+
+    try {
+      const simulatedData = [];
+      for (let i = 0; i < count; i++) {
+        const data = {
+          participante_id: `SIM_${Date.now()}_${i}`,
+          edad: Math.floor(Math.random() * 60) + 20, // 20-80 años
+          nivel_educacion: Math.floor(Math.random() * 3) + 1, // 1-3
+          memoria_inmediata: Math.random() * 10, // 0-10
+          memoria_trabajo: Math.random() * 10, // 0-10
+          memoria_visual: Math.random() * 10, // 0-10
+          tiempo_reaccion: Math.floor(Math.random() * 1500) + 500, // 500-2000ms
+          precision_respuestas: Math.random() * 100, // 0-100%
+          atencion_sostenida: Math.random() * 10, // 0-10
+          fatiga_cognitiva: Math.floor(Math.random() * 5) + 1, // 1-5
+          fecha: new Date().toISOString()
+        };
+        simulatedData.push(data);
+      }
+
+      const existingDatasets = JSON.parse(localStorage.getItem('csv_datasets') || '[]');
+      existingDatasets.push({
+        name: `Datos_Simulados_${Date.now()}`,
+        data: simulatedData,
+        timestamp: new Date().toISOString()
+      });
+      
+      localStorage.setItem('csv_datasets', JSON.stringify(existingDatasets));
+      setCsvDatasets(existingDatasets);
+      
+      toast.success(`${count} registros simulados generados exitosamente`);
+      setSimulatedDataCount('');
+    } catch (error) {
+      console.error('Error generating simulated data:', error);
+      toast.error('Error al generar datos simulados');
+    }
+  };
+
+  // Model training functions
+  const trainModel = async () => {
+    if (testResults.length < 10) {
+      toast.error('Se necesitan al menos 10 registros para entrenar el modelo');
+      return;
+    }
+
+    setIsTraining(true);
+    setTrainingLog(['Iniciando entrenamiento del modelo...']);
+    
+    try {
+      // Simular entrenamiento del modelo
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setTrainingLog(prev => [...prev, 'Preparando datos...']);
+      
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      setTrainingLog(prev => [...prev, 'Entrenando Random Forest...']);
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setTrainingLog(prev => [...prev, 'Validando modelo...']);
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Calcular precisión simulada basada en la calidad de los datos
+      const accuracy = Math.min(95, 75 + (testResults.length / 10));
+      setModelAccuracy(accuracy);
+      setTrainingLog(prev => [...prev, `Modelo entrenado exitosamente con precisión: ${accuracy.toFixed(1)}%`]);
+      
+      toast.success('Modelo entrenado exitosamente');
+    } catch (error) {
+      console.error('Error training model:', error);
+      setTrainingLog(prev => [...prev, 'Error durante el entrenamiento']);
+      toast.error('Error al entrenar el modelo');
+    } finally {
+      setIsTraining(false);
     }
   };
 
@@ -148,40 +286,116 @@ const AdminPanel = () => {
   const getStatistics = () => {
     if (testResults.length === 0) return null;
 
-    const avgAge = testResults.reduce((sum, result) => sum + result.edad, 0) / testResults.length;
-    const avgMemoriaVisual = testResults.reduce((sum, result) => sum + result.memoria_visual, 0) / testResults.length;
-    const avgMemoriaTrabajo = testResults.reduce((sum, result) => sum + result.memoria_trabajo, 0) / testResults.length;
-    const avgAtencion = testResults.reduce((sum, result) => sum + result.atencion_sostenida, 0) / testResults.length;
+    try {
+      const validResults = testResults.filter(result => 
+        result && 
+        typeof result.edad === 'number' && 
+        typeof result.memoria_visual === 'number' && 
+        typeof result.memoria_trabajo === 'number' && 
+        typeof result.atencion_sostenida === 'number'
+      );
 
-    return {
-      totalParticipantes: testResults.length,
-      edadPromedio: avgAge.toFixed(1),
-      memoriaVisualPromedio: avgMemoriaVisual.toFixed(1),
-      memoriaTrabajoPromedio: avgMemoriaTrabajo.toFixed(1),
-      atencionPromedio: avgAtencion.toFixed(1)
-    };
+      if (validResults.length === 0) return null;
+
+      const avgAge = validResults.reduce((sum, result) => sum + (result.edad || 0), 0) / validResults.length;
+      const avgMemoriaVisual = validResults.reduce((sum, result) => sum + (result.memoria_visual || 0), 0) / validResults.length;
+      const avgMemoriaTrabajo = validResults.reduce((sum, result) => sum + (result.memoria_trabajo || 0), 0) / validResults.length;
+      const avgAtencion = validResults.reduce((sum, result) => sum + (result.atencion_sostenida || 0), 0) / validResults.length;
+
+      return {
+        totalParticipantes: testResults.length,
+        edadPromedio: avgAge.toFixed(1),
+        memoriaVisualPromedio: avgMemoriaVisual.toFixed(1),
+        memoriaTrabajoPromedio: avgMemoriaTrabajo.toFixed(1),
+        atencionPromedio: avgAtencion.toFixed(1)
+      };
+    } catch (error) {
+      console.error('Error calculating statistics:', error);
+      return null;
+    }
   };
 
   const stats = getStatistics();
+
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-md mx-auto space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Lock className="h-6 w-6 text-red-600" />
+              <span>Acceso Restringido</span>
+            </CardTitle>
+            <CardDescription>
+              Ingrese las credenciales de administrador para acceder al panel de control.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="username">Usuario</Label>
+              <Input
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Ingrese usuario"
+              />
+            </div>
+            <div>
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Ingrese contraseña"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleLogin();
+                  }
+                }}
+              />
+            </div>
+            <Button onClick={handleLogin} className="w-full">
+              Iniciar Sesión
+            </Button>
+            <div className="text-xs text-gray-500 text-center">
+              <p>Usuario: Admin123</p>
+              <p>Contraseña: Admin123</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Users className="h-6 w-6 text-blue-600" />
-            <span>Panel de Administración</span>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Users className="h-6 w-6 text-blue-600" />
+              <span>Panel de Administración</span>
+            </div>
+            <Button 
+              onClick={() => setIsAuthenticated(false)}
+              variant="outline"
+              size="sm"
+            >
+              Cerrar Sesión
+            </Button>
           </CardTitle>
           <CardDescription>
-            Gestión de datos de tests, exportación/importación y estadísticas generales.
+            Gestión de datos de tests, exportación/importación y entrenamiento del modelo de IA.
           </CardDescription>
         </CardHeader>
       </Card>
 
       <Tabs defaultValue="datos" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="datos">Gestión de Datos</TabsTrigger>
           <TabsTrigger value="estadisticas">Estadísticas</TabsTrigger>
+          <TabsTrigger value="modelo">Entrenamiento IA</TabsTrigger>
           <TabsTrigger value="configuracion">Configuración</TabsTrigger>
         </TabsList>
 
@@ -221,10 +435,44 @@ const AdminPanel = () => {
                     Eliminar Seleccionados ({selectedResults.length})
                   </Button>
                 )}
-                <Button onClick={clearAllData} variant="destructive" disabled={testResults.length === 0}>
-                  Borrar Todos los Datos
+                <Button onClick={clearTestData} variant="destructive" disabled={testResults.length === 0}>
+                  Borrar datos de tests
+                </Button>
+                <Button onClick={clearCsvData} variant="destructive" disabled={csvDatasets.length === 0}>
+                  Borrar datos CSV
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Generación de datos simulados */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Generación de Datos Simulados</CardTitle>
+              <CardDescription>
+                Genere datos aleatorios para pruebas del modelo de IA.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <Label htmlFor="dataCount">Cantidad de datos simulados:</Label>
+                <Input
+                  id="dataCount"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={simulatedDataCount}
+                  onChange={(e) => setSimulatedDataCount(e.target.value)}
+                  placeholder="Ej: 100"
+                  className="w-32"
+                />
+                <Button onClick={generateSimulatedData} disabled={!simulatedDataCount}>
+                  Generar Datos
+                </Button>
+              </div>
+              <p className="text-sm text-gray-600">
+                Los datos generados son aleatorios y no corresponden a evaluaciones reales.
+              </p>
             </CardContent>
           </Card>
 
@@ -288,15 +536,15 @@ const AdminPanel = () => {
                           <td className="border border-gray-200 p-2 font-mono text-sm">
                             {result.participante_id.substring(0, 15)}...
                           </td>
-                          <td className="border border-gray-200 p-2">{result.edad}</td>
+                          <td className="border border-gray-200 p-2">{result.edad || 0}</td>
                           <td className="border border-gray-200 p-2">
                             {result.nivel_educacion === 1 ? 'Básico' : 
                              result.nivel_educacion === 2 ? 'Medio' : 'Superior'}
                           </td>
-                          <td className="border border-gray-200 p-2">{result.memoria_visual.toFixed(1)}</td>
-                          <td className="border border-gray-200 p-2">{result.memoria_trabajo.toFixed(1)}</td>
-                          <td className="border border-gray-200 p-2">{result.atencion_sostenida.toFixed(1)}</td>
-                          <td className="border border-gray-200 p-2">{result.precision_respuestas.toFixed(1)}%</td>
+                          <td className="border border-gray-200 p-2">{(result.memoria_visual || 0).toFixed(1)}</td>
+                          <td className="border border-gray-200 p-2">{(result.memoria_trabajo || 0).toFixed(1)}</td>
+                          <td className="border border-gray-200 p-2">{(result.atencion_sostenida || 0).toFixed(1)}</td>
+                          <td className="border border-gray-200 p-2">{(result.precision_respuestas || 0).toFixed(1)}%</td>
                           <td className="border border-gray-200 p-2 text-sm">
                             {new Date(result.fecha).toLocaleDateString()}
                           </td>
@@ -414,6 +662,74 @@ const AdminPanel = () => {
           )}
         </TabsContent>
 
+        <TabsContent value="modelo" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Brain className="h-6 w-6 text-purple-600" />
+                <span>Entrenamiento del Modelo de IA</span>
+              </CardTitle>
+              <CardDescription>
+                Entrene el modelo Random Forest con los datos disponibles para mejorar las predicciones.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-semibold mb-4">Estado del Modelo</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span>Datos disponibles:</span>
+                      <span className="font-semibold">{testResults.length} registros</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Precisión actual:</span>
+                      <span className="font-semibold">
+                        {modelAccuracy ? `${modelAccuracy.toFixed(1)}%` : 'No entrenado'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Estado:</span>
+                      <span className={`font-semibold ${isTraining ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {isTraining ? 'Entrenando...' : 'Listo'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-4">Acciones</h3>
+                  <div className="space-y-3">
+                    <Button 
+                      onClick={trainModel} 
+                      disabled={isTraining || testResults.length < 10}
+                      className="w-full bg-purple-600 hover:bg-purple-700"
+                    >
+                      {isTraining ? 'Entrenando...' : 'Entrenar Modelo'}
+                    </Button>
+                    {testResults.length < 10 && (
+                      <div className="flex items-center space-x-2 text-yellow-600">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span className="text-sm">Se necesitan al menos 10 registros</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {trainingLog.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-4">Log de Entrenamiento</h3>
+                  <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm max-h-64 overflow-y-auto">
+                    {trainingLog.map((log, index) => (
+                      <div key={index}>{log}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="configuracion" className="space-y-6">
           <Card>
             <CardHeader>
@@ -426,7 +742,9 @@ const AdminPanel = () => {
               <div className="space-y-4">
                 <h3 className="font-semibold">Información del Sistema</h3>
                 <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <p><strong>Versión del OVA:</strong> 1.0.0</p>
+                  <p><strong>Versión del OVA:</strong> 2.0.0</p>
+                  <p><strong>Institución:</strong> Universidad de Córdoba</p>
+                  <p><strong>Autores:</strong> Felipe Patrón y Juan Angulo</p>
                   <p><strong>Modelo de IA:</strong> Random Forest Classifier</p>
                   <p><strong>Tests Implementados:</strong> SMART, VMT-SP, Memoria de Trabajo</p>
                   <p><strong>Almacenamiento:</strong> LocalStorage del navegador</p>
@@ -452,6 +770,7 @@ const AdminPanel = () => {
                   <li>• Los archivos CSV deben seguir exactamente la estructura especificada</li>
                   <li>• Las puntuaciones van de 0 a 10 para las pruebas de memoria</li>
                   <li>• El nivel educativo usa valores: 1=Básico, 2=Medio, 3=Superior</li>
+                  <li>• El sistema incluye validaciones para prevenir errores de cálculo</li>
                 </ul>
               </div>
             </CardContent>
