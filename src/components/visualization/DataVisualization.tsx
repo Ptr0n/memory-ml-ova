@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, ScatterPlot, Scatter } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, ScatterChart, Scatter } from 'recharts';
 import { BarChart3, TrendingUp, Users, RefreshCw } from 'lucide-react';
 
 interface TestResult {
@@ -353,13 +352,13 @@ const DataVisualization = () => {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <ScatterPlot>
+            <ScatterChart>
               <CartesianGrid />
               <XAxis type="number" dataKey="edad" name="Edad" />
               <YAxis type="number" dataKey="memoria_promedio" name="Memoria Promedio" />
               <Tooltip cursor={{ strokeDasharray: '3 3' }} />
               <Scatter name="Participantes" data={getCorrelationData()} fill="#8884d8" />
-            </ScatterPlot>
+            </ScatterChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
