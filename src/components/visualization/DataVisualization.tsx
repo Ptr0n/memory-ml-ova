@@ -1,49 +1,72 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ScatterChart, Scatter, Cell, PieChart, Pie } from 'recharts';
-import { BarChart3, TrendingUp, Users, Brain, Download, RefreshCw } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, ScatterChart, Scatter, PieChart, Pie, Cell } from 'recharts';
+import { BarChart3, TrendingUp, Users, Brain, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+interface TestResult {
+  participante_id: string;
+  edad: number;
+  nivel_educacion: number;
+  memoria_inmediata: number;
+  memoria_trabajo: number;
+  memoria_visual: number;
+  tiempo_reaccion: number;
+  precision_respuestas: number;
+  atencion_sostenida: number;
+  fatiga_cognitiva: number;
+  fecha: string;
+}
+
 const DataVisualization = () => {
-  const [testResults, setTestResults] = useState<any[]>([]);
-  const [csvData, setCsvData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
+  const [uploadedData, setUploadedData] = useState<TestResult[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const loadData = () => {
     try {
-      // Load test results
-      const savedResults = localStorage.getItem('test_results');
-      const results = savedResults ? JSON.parse(savedResults) : [];
+      // Cargar datos de tests realizados
+      const testData = JSON.parse(localStorage.getItem('test_results') || '[]');
+      console.log('Test data loaded:', testData);
       
-      // Load CSV data
-      const savedCsvData = localStorage.getItem('uploaded_dataset');
-      const csvResults = savedCsvData ? JSON.parse(savedCsvData) : [];
+      // Cargar datos subidos por CSV
+      const csvData = JSON.parse(localStorage.getItem('uploaded_dataset') || '[]');
+      console.log('CSV data loaded:', csvData);
       
-      setTestResults(results);
-      setCsvData(csvResults);
+      setTestResults(testData);
+      setUploadedData(csvData);
     } catch (error) {
       console.error('Error loading data:', error);
       setTestResults([]);
-      setCsvData([]);
+      setUploadedData([]);
     }
   };
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [refreshTrigger]);
 
-  const refreshData = () => {
-    setLoading(true);
-    setTimeout(() => {
-      loadData();
-      setLoading(false);
-      toast.success('Datos actualizados');
-    }, 500);
+  // Combinar todos los datos disponibles
+  const allData = useMemo(() => {
+    const combined = [...testResults, ...uploadedData];
+    console.log('Combined data:', combined);
+    return combined;
+  }, [testResults, uploadedData]);
+
+  const clearCSVData = () => {
+    try {
+      localStorage.removeItem('uploaded_dataset');
+      localStorage.removeItem('dataset_upload_time');
+      setUploadedData([]);
+      setRefreshTrigger(prev => prev + 1);
+      toast.success('Datos CSV eliminados exitosamente');
+    } catch (error) {
+      console.error('Error clearing CSV data:', error);
+      toast.error('Error al eliminar datos CSV');
+    }
   };
-
-  const allData = [...testResults, ...csvData];
 
   if (allData.length === 0) {
     return (
@@ -55,26 +78,23 @@ const DataVisualization = () => {
               <span>Visualización de Datos</span>
             </CardTitle>
             <CardDescription>
-              Análisis gráfico y estadístico de los resultados de evaluaciones de memoria
+              Análisis visual de resultados de evaluaciones cognitivas
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent>
             <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
-                <BarChart3 className="h-16 w-16 mx-auto" />
+              <div className="bg-gray-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <BarChart3 className="h-8 w-8 text-gray-400" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">No hay datos disponibles</h3>
+              <h3 className="text-lg font-semibold text-gray-600 mb-2">No hay datos disponibles</h3>
               <p className="text-gray-500 mb-4">
-                Para ver las visualizaciones, primero debe:
+                Realice evaluaciones o cargue datos CSV para ver las visualizaciones
               </p>
-              <ul className="text-sm text-gray-500 space-y-1 mb-6">
-                <li>• Realizar tests de evaluación, o</li>
-                <li>• Cargar un archivo CSV con datos</li>
-              </ul>
-              <Button onClick={refreshData} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Actualizar
-              </Button>
+              <div className="flex justify-center space-x-4">
+                <Button onClick={() => setRefreshTrigger(prev => prev + 1)} variant="outline">
+                  Actualizar Datos
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -82,235 +102,223 @@ const DataVisualization = () => {
     );
   }
 
-  // Preparar datos para gráficos
-  const memoryData = allData.map((item, index) => ({
+  // Preparar datos para visualización con nombres anónimos
+  const chartData = allData.map((result, index) => ({
+    ...result,
     nombre: `Persona ${index + 1}`,
-    memoria_inmediata: parseFloat(item.memoria_inmediata) || 0,
-    memoria_trabajo: parseFloat(item.memoria_trabajo) || 0,
-    memoria_visual: parseFloat(item.memoria_visual) || 0,
-    atencion_sostenida: parseFloat(item.atencion_sostenida) || 0
+    memoria_promedio: (result.memoria_inmediata + result.memoria_trabajo + result.memoria_visual) / 3
   }));
 
-  const ageDistribution = allData.reduce((acc: any, item) => {
-    if (!item.edad) return acc;
-    const ageGroup = item.edad < 30 ? '18-29' : 
-                     item.edad < 40 ? '30-39' : 
-                     item.edad < 50 ? '40-49' : 
-                     item.edad < 60 ? '50-59' : '60+';
-    acc[ageGroup] = (acc[ageGroup] || 0) + 1;
+  // Estadísticas descriptivas
+  const stats = {
+    total: allData.length,
+    edad_promedio: allData.reduce((sum, r) => sum + r.edad, 0) / allData.length,
+    memoria_trabajo_prom: allData.reduce((sum, r) => sum + (r.memoria_trabajo || 0), 0) / allData.length,
+    atencion_prom: allData.reduce((sum, r) => sum + (r.atencion_sostenida || 0), 0) / allData.length,
+    precision_prom: allData.reduce((sum, r) => sum + (r.precision_respuestas || 0), 0) / allData.length
+  };
+
+  // Datos para gráfico de distribución por edad
+  const edadDistribution = allData.reduce((acc: any, result) => {
+    const grupo = result.edad < 30 ? '18-29' : result.edad < 50 ? '30-49' : result.edad < 65 ? '50-64' : '65+';
+    acc[grupo] = (acc[grupo] || 0) + 1;
     return acc;
   }, {});
 
-  const ageData = Object.entries(ageDistribution).map(([age, count]) => ({
-    edad: age,
-    cantidad: count
-  }));
+  const edadData = Object.entries(edadDistribution).map(([grupo, count]) => ({ grupo, count }));
 
-  const avgScores = {
-    memoria_inmediata: allData.reduce((sum, item) => sum + (parseFloat(item.memoria_inmediata) || 0), 0) / allData.length,
-    memoria_trabajo: allData.reduce((sum, item) => sum + (parseFloat(item.memoria_trabajo) || 0), 0) / allData.length,
-    memoria_visual: allData.reduce((sum, item) => sum + (parseFloat(item.memoria_visual) || 0), 0) / allData.length,
-    atencion_sostenida: allData.reduce((sum, item) => sum + (parseFloat(item.atencion_sostenida) || 0), 0) / allData.length
-  };
+  // Datos para gráfico de nivel educativo
+  const nivelEducativoData = allData.reduce((acc: any, result) => {
+    const nivel = result.nivel_educacion === 1 ? 'Básico' : result.nivel_educacion === 2 ? 'Medio' : 'Superior';
+    acc[nivel] = (acc[nivel] || 0) + 1;
+    return acc;
+  }, {});
 
-  const downloadData = (format: 'csv' | 'json') => {
-    try {
-      let content = '';
-      let filename = '';
-      let mimeType = '';
+  const educacionData = Object.entries(nivelEducativoData).map(([nivel, count]) => ({ nivel, count }));
 
-      if (format === 'csv') {
-        const headers = ['participante_id', 'edad', 'nivel_educacion', 'memoria_inmediata', 'memoria_trabajo', 'memoria_visual', 'tiempo_reaccion', 'precision_respuestas', 'atencion_sostenida', 'fatiga_cognitiva', 'fecha'];
-        content = [
-          headers.join(','),
-          ...allData.map(item => 
-            headers.map(header => item[header] || '').join(',')
-          )
-        ].join('\n');
-        filename = `resultados_memoria_${new Date().toISOString().split('T')[0]}.csv`;
-        mimeType = 'text/csv;charset=utf-8;';
-      } else {
-        content = JSON.stringify(allData, null, 2);
-        filename = `resultados_memoria_${new Date().toISOString().split('T')[0]}.json`;
-        mimeType = 'application/json;charset=utf-8;';
-      }
-
-      const blob = new Blob([content], { type: mimeType });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', filename);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      toast.success(`Datos descargados como ${format.toUpperCase()}`);
-    } catch (error) {
-      console.error('Error downloading data:', error);
-      toast.error('Error al descargar los datos');
-    }
-  };
+  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <BarChart3 className="h-6 w-6 text-blue-600" />
-              <span>Visualización de Datos</span>
-            </div>
-            <div className="flex space-x-2">
-              <Button onClick={refreshData} disabled={loading} variant="outline" size="sm">
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Actualizar
-              </Button>
-              <Button onClick={() => downloadData('csv')} variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                CSV
-              </Button>
-              <Button onClick={() => downloadData('json')} variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                JSON
-              </Button>
-            </div>
+          <CardTitle className="flex items-center space-x-2">
+            <BarChart3 className="h-6 w-6 text-blue-600" />
+            <span>Visualización de Datos</span>
           </CardTitle>
           <CardDescription>
-            Análisis gráfico de {allData.length} registros de evaluaciones de memoria
+            Análisis visual de {allData.length} evaluaciones cognitivas
           </CardDescription>
+          {uploadedData.length > 0 && (
+            <div className="flex justify-end">
+              <Button onClick={clearCSVData} variant="destructive" size="sm">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Limpiar Datos CSV
+              </Button>
+            </div>
+          )}
         </CardHeader>
       </Card>
 
       {/* Estadísticas Generales */}
       <div className="grid md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Users className="h-5 w-5 text-blue-600" />
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Evaluaciones</p>
-                <p className="text-2xl font-bold text-blue-600">{allData.length}</p>
+                <p className="text-sm text-gray-600">Total Evaluaciones</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
               </div>
-              <Users className="h-8 w-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <TrendingUp className="h-5 w-5 text-green-600" />
               <div>
-                <p className="text-sm font-medium text-gray-600">Memoria Inmediata Prom.</p>
-                <p className="text-2xl font-bold text-green-600">{avgScores.memoria_inmediata.toFixed(1)}</p>
+                <p className="text-sm text-gray-600">Edad Promedio</p>
+                <p className="text-2xl font-bold text-green-600">{stats.edad_promedio.toFixed(1)}</p>
               </div>
-              <Brain className="h-8 w-8 text-green-600" />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <Brain className="h-5 w-5 text-purple-600" />
               <div>
-                <p className="text-sm font-medium text-gray-600">Memoria Trabajo Prom.</p>
-                <p className="text-2xl font-bold text-purple-600">{avgScores.memoria_trabajo.toFixed(1)}</p>
+                <p className="text-sm text-gray-600">Memoria Trabajo Prom.</p>
+                <p className="text-2xl font-bold text-purple-600">{stats.memoria_trabajo_prom.toFixed(1)}</p>
               </div>
-              <Brain className="h-8 w-8 text-purple-600" />
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <BarChart3 className="h-5 w-5 text-orange-600" />
               <div>
-                <p className="text-sm font-medium text-gray-600">Atención Prom.</p>
-                <p className="text-2xl font-bold text-orange-600">{avgScores.atencion_sostenida.toFixed(1)}</p>
+                <p className="text-sm text-gray-600">Atención Prom.</p>
+                <p className="text-2xl font-bold text-orange-600">{stats.atencion_prom.toFixed(1)}</p>
               </div>
-              <TrendingUp className="h-8 w-8 text-orange-600" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Gráfico de Comparación de Puntuaciones */}
+      {/* Comparación de Puntuaciones de Memoria */}
       <Card>
         <CardHeader>
           <CardTitle>Comparación de Puntuaciones de Memoria</CardTitle>
-          <CardDescription>
-            Puntuaciones individuales por tipo de memoria evaluada
-          </CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={memoryData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="nombre" />
-              <YAxis domain={[0, 10]} />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="memoria_inmediata" fill="#10b981" name="Memoria Inmediata" />
-              <Bar dataKey="memoria_trabajo" fill="#8b5cf6" name="Memoria de Trabajo" />
-              <Bar dataKey="memoria_visual" fill="#3b82f6" name="Memoria Visual" />
-              <Bar dataKey="atencion_sostenida" fill="#f59e0b" name="Atención Sostenida" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="nombre" />
+                <YAxis domain={[0, 10]} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="memoria_inmediata" fill="#3B82F6" name="Memoria Inmediata" />
+                <Bar dataKey="memoria_trabajo" fill="#10B981" name="Memoria de Trabajo" />
+                <Bar dataKey="memoria_visual" fill="#F59E0B" name="Memoria Visual" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </CardContent>
       </Card>
 
       {/* Distribución por Edad */}
-      {ageData.length > 0 && (
+      <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Distribución por Grupos de Edad</CardTitle>
-            <CardDescription>
-              Cantidad de participantes por rango etario
-            </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={ageData}
-                  dataKey="cantidad"
-                  nameKey="edad"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  fill="#8884d8"
-                  label={({ edad, cantidad }) => `${edad}: ${cantidad}`}
-                >
-                  {ageData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'][index % 5]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={edadData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    dataKey="count"
+                    nameKey="grupo"
+                  >
+                    {edadData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Tendencias de Rendimiento */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Distribución por Nivel Educativo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={educacionData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="nivel" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#8B5CF6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Correlación Edad vs Rendimiento */}
       <Card>
         <CardHeader>
-          <CardTitle>Tendencias de Rendimiento Promedio</CardTitle>
-          <CardDescription>
-            Comparación de puntuaciones promedio por tipo de memoria
-          </CardDescription>
+          <CardTitle>Relación entre Edad y Rendimiento Cognitivo</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={[
-              { tipo: 'Memoria Inmediata', puntuacion: avgScores.memoria_inmediata },
-              { tipo: 'Memoria de Trabajo', puntuacion: avgScores.memoria_trabajo },
-              { tipo: 'Memoria Visual', puntuacion: avgScores.memoria_visual },
-              { tipo: 'Atención Sostenida', puntuacion: avgScores.atencion_sostenida }
-            ]}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="tipo" />
-              <YAxis domain={[0, 10]} />
-              <Tooltip />
-              <Line type="monotone" dataKey="puntuacion" stroke="#8884d8" strokeWidth={3} />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="edad" name="Edad" />
+                <YAxis dataKey="memoria_promedio" name="Memoria Promedio" domain={[0, 10]} />
+                <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                <Scatter name="Participantes" dataKey="memoria_promedio" fill="#3B82F6" />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tendencias de Tiempo de Reacción */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Tiempo de Reacción por Participante</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="nombre" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="tiempo_reaccion" stroke="#F59E0B" name="Tiempo de Reacción (ms)" />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </CardContent>
       </Card>
     </div>

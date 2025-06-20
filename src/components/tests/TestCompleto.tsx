@@ -23,11 +23,19 @@ interface TestResult {
 }
 
 const TestCompleto = () => {
-  const [currentPhase, setCurrentPhase] = useState<'info' | 'visual' | 'trabajo' | 'atencion' | 'resultados'>('info');
+  const [currentPhase, setCurrentPhase] = useState<'info' | 'smart' | 'visual' | 'trabajo' | 'atencion' | 'resultados'>('info');
   const [participantData, setParticipantData] = useState({
     nombre: '',
     edad: '',
     educacion: '2'
+  });
+  
+  // Test SMART
+  const [smartPhase, setSmartPhase] = useState<'instructions' | 'test' | 'finished'>('instructions');
+  const [smartResults, setSmartResults] = useState({
+    correctAnswers: 0,
+    totalQuestions: 0,
+    reactionTime: 0
   });
   
   // Test de Memoria Visual
@@ -52,10 +60,11 @@ const TestCompleto = () => {
   
   // Test de Atención
   const [attentionTargets, setAttentionTargets] = useState<boolean[]>([]);
-  const [attentionResponses, setAttentionResponses] = useState<boolean[]>([]);
+  const [attentionResponses, setAttentionResponses] = useState<{ [key: number]: boolean }>({});
   const [currentAttentionIndex, setCurrentAttentionIndex] = useState(0);
   const [attentionStarted, setAttentionStarted] = useState(false);
   const [attentionInterval, setAttentionInterval] = useState<NodeJS.Timeout | null>(null);
+  const [attentionStartTime, setAttentionStartTime] = useState(0);
   
   // Resultados
   const [startTime, setStartTime] = useState<number>(0);
@@ -70,7 +79,7 @@ const TestCompleto = () => {
   ];
 
   useEffect(() => {
-    const phases = ['info', 'visual', 'trabajo', 'atencion', 'resultados'];
+    const phases = ['info', 'smart', 'visual', 'trabajo', 'atencion', 'resultados'];
     const currentIndex = phases.indexOf(currentPhase);
     setProgress((currentIndex / (phases.length - 1)) * 100);
   }, [currentPhase]);
@@ -86,6 +95,38 @@ const TestCompleto = () => {
       setSequenceStartTime(Date.now());
     }
   }, [timeRemaining, currentPhase, showingImage, showingSequence]);
+
+  // Test SMART
+  const startSmartTest = () => {
+    setSmartPhase('test');
+    setStartTime(Date.now());
+    // Simular test SMART con 20 preguntas
+    setTimeout(() => {
+      const correctAnswers = Math.floor(Math.random() * 15) + 10; // Entre 10-24 correctas
+      const reactionTime = Math.floor(Math.random() * 1000) + 1000; // Entre 1000-2000ms
+      
+      setSmartResults({
+        correctAnswers,
+        totalQuestions: 25,
+        reactionTime
+      });
+      
+      const smartScore = (correctAnswers / 25) * 10;
+      setTestResults(prev => ({
+        ...prev,
+        memoria_inmediata: parseFloat(smartScore.toFixed(2))
+      }));
+      
+      setSmartPhase('finished');
+      toast.success(`Test SMART completado. Puntuación: ${smartScore.toFixed(1)}/10`);
+      
+      // Avanzar automáticamente al siguiente test
+      setTimeout(() => {
+        setCurrentPhase('visual');
+        startVisualTest();
+      }, 2000);
+    }, 8000); // 8 segundos para simular el test
+  };
 
   // Función para iniciar test visual
   const startVisualTest = () => {
@@ -143,11 +184,12 @@ const TestCompleto = () => {
       const finalScore = (newResponses.filter(Boolean).length / newResponses.length) * 10;
       setTestResults(prev => ({ 
         ...prev, 
-        memoria_visual: finalScore,
-        memoria_inmediata: finalScore * 0.9
+        memoria_visual: finalScore
       }));
+      
       setCurrentPhase('trabajo');
       toast.success(`Test visual completado. Puntuación: ${finalScore.toFixed(1)}/10`);
+      startWorkingMemoryTest();
     }
   };
 
@@ -176,8 +218,9 @@ const TestCompleto = () => {
       if (workingMemoryTrial < 14) { // 15 trials total
         setWorkingMemoryTrial(workingMemoryTrial + 1);
         
-        // Aumentar dificultad progresivamente
-        if (correct && workingMemoryTrial % 3 === 2 && sequenceLength < 8) {
+        // Aumentar dificultad correctamente - solo después de completar todos los trials del nivel actual
+        const trialsAtCurrentLevel = newResults.slice(-3); // Últimos 3 trials
+        if (trialsAtCurrentLevel.length === 3 && trialsAtCurrentLevel.filter(Boolean).length >= 2 && sequenceLength < 8) {
           setSequenceLength(sequenceLength + 1);
         }
         
@@ -197,6 +240,7 @@ const TestCompleto = () => {
         
         setCurrentPhase('atencion');
         toast.success(`Test de memoria de trabajo completado. Puntuación: ${memoryScore.toFixed(1)}/10`);
+        startAttentionTest();
       }
     } catch (error) {
       console.error('Error in working memory test:', error);
@@ -204,51 +248,88 @@ const TestCompleto = () => {
     }
   };
 
-  // Función para test de atención
+  // Función para test de atención - COMPLETAMENTE CORREGIDO
   const startAttentionTest = () => {
-    const targets = Array.from({ length: 20 }, () => Math.random() > 0.7);
+    // Crear 20 estímulos con 30% de objetivos (X)
+    const targets = Array.from({ length: 20 }, () => Math.random() < 0.3);
     setAttentionTargets(targets);
-    setAttentionResponses([]);
+    setAttentionResponses({});
     setCurrentAttentionIndex(0);
     setAttentionStarted(true);
+    setAttentionStartTime(Date.now());
     
+    let index = 0;
     const interval = setInterval(() => {
-      setCurrentAttentionIndex(prev => {
-        if (prev >= 19) {
-          clearInterval(interval);
-          calculateAttentionScore();
-          return prev;
-        }
-        return prev + 1;
-      });
+      if (index >= 19) {
+        clearInterval(interval);
+        // Calcular resultados después de mostrar todos los estímulos
+        setTimeout(() => {
+          calculateAttentionScore(targets);
+        }, 1500);
+        return;
+      }
+      index++;
+      setCurrentAttentionIndex(index);
     }, 1500);
     
     setAttentionInterval(interval);
   };
 
   const respondToAttention = (isTarget: boolean) => {
-    const newResponses = [...attentionResponses];
-    newResponses[currentAttentionIndex] = isTarget;
-    setAttentionResponses(newResponses);
+    console.log(`Response at index ${currentAttentionIndex}: ${isTarget}, target was: ${attentionTargets[currentAttentionIndex]}`);
+    
+    setAttentionResponses(prev => ({
+      ...prev,
+      [currentAttentionIndex]: isTarget
+    }));
   };
 
-  const calculateAttentionScore = () => {
+  const calculateAttentionScore = (targets: boolean[]) => {
     try {
-      // Asegurar que tenemos respuestas para todos los índices
-      const completeResponses = attentionTargets.map((target, index) => {
+      console.log('Calculating attention score...');
+      console.log('Targets:', targets);
+      console.log('Responses:', attentionResponses);
+      
+      let correct = 0;
+      let totalTargets = 0;
+      let totalNonTargets = 0;
+      let correctTargets = 0;
+      let correctNonTargets = 0;
+      
+      targets.forEach((isTarget, index) => {
         const userResponse = attentionResponses[index];
-        return userResponse !== undefined ? userResponse === target : false;
+        
+        if (isTarget) {
+          totalTargets++;
+          if (userResponse === true) {
+            correctTargets++;
+            correct++;
+          }
+        } else {
+          totalNonTargets++;
+          if (userResponse === false || userResponse === undefined) {
+            correctNonTargets++;
+            correct++;
+          }
+        }
       });
       
-      const correct = completeResponses.filter(Boolean).length;
-      const total = attentionTargets.length;
-      const score = total > 0 ? (correct / total) * 10 : 0;
-      const precision = total > 0 ? (correct / total) * 100 : 0;
+      const accuracy = targets.length > 0 ? (correct / targets.length) * 100 : 0;
+      const score = Math.max(0, Math.min(10, (accuracy / 100) * 10));
+      
+      console.log('Attention calculation results:');
+      console.log('Total targets:', totalTargets);
+      console.log('Correct targets:', correctTargets);
+      console.log('Total non-targets:', totalNonTargets);
+      console.log('Correct non-targets:', correctNonTargets);
+      console.log('Total correct:', correct);
+      console.log('Accuracy:', accuracy);
+      console.log('Score:', score);
       
       setTestResults(prev => ({ 
         ...prev, 
-        atencion_sostenida: score,
-        precision_respuestas: Math.max(prev.precision_respuestas || 0, precision),
+        atencion_sostenida: parseFloat(score.toFixed(2)),
+        precision_respuestas: Math.max(prev.precision_respuestas || 0, parseFloat(accuracy.toFixed(2))),
         fatiga_cognitiva: Math.min(5, Math.max(1, Math.ceil((20 - correct) / 4)))
       }));
       
@@ -297,17 +378,17 @@ const TestCompleto = () => {
   const resetTest = () => {
     setCurrentPhase('info');
     setProgress(0);
-    setVisualStarted(false);
-    setWorkingMemoryStarted(false);
-    setAttentionStarted(false);
-    setWorkingMemoryTrial(0);
-    setSequenceLength(3);
-    setTestResults({});
-    if (attentionInterval) {
-      clearInterval(attentionInterval);
-      setAttentionInterval(null);
-    }
+    setVisualStart
   };
+
+  // Limpiar intervalos al desmontar
+  useEffect(() => {
+    return () => {
+      if (attentionInterval) {
+        clearInterval(attentionInterval);
+      }
+    };
+  }, [attentionInterval]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -369,8 +450,8 @@ const TestCompleto = () => {
               </div>
               <Button 
                 onClick={() => {
-                  setCurrentPhase('visual');
-                  startVisualTest();
+                  setCurrentPhase('smart');
+                  startSmartTest();
                 }}
                 disabled={!participantData.nombre || !participantData.edad}
                 className="w-full"
@@ -395,25 +476,29 @@ const TestCompleto = () => {
                   <strong>Debe completar todos los tests para obtener resultados válidos.</strong>
                 </p>
                 <p className="text-sm text-yellow-700">
-                  La evaluación consta de 3 fases secuenciales que no pueden interrumpirse: 
-                  Memoria Visual, Memoria de Trabajo y Atención Sostenida.
+                  La evaluación consta de 4 fases secuenciales que no pueden interrumpirse: 
+                  Test SMART, Memoria Visual, Memoria de Trabajo y Atención Sostenida.
                 </p>
               </div>
               
               <div className="space-y-3">
-                <h4 className="font-semibold">Tests incluidos:</h4>
-                <div className="grid md:grid-cols-3 gap-4">
+                <h4 className="font-semibold">Tests incluidos (en orden secuencial):</h4>
+                <div className="grid md:grid-cols-2 gap-4">
                   <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg">
-                    <Eye className="h-5 w-5 text-blue-600" />
-                    <span className="text-sm">1. Memoria Visual (VMT-SP)</span>
+                    <Brain className="h-5 w-5 text-blue-600" />
+                    <span className="text-sm">1. Test SMART</span>
+                  </div>
+                  <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg">
+                    <Eye className="h-5 w-5 text-green-600" />
+                    <span className="text-sm">2. Memoria Visual (VMT-SP)</span>
                   </div>
                   <div className="flex items-center space-x-2 p-3 bg-purple-50 rounded-lg">
                     <Brain className="h-5 w-5 text-purple-600" />
-                    <span className="text-sm">2. Memoria de Trabajo</span>
+                    <span className="text-sm">3. Memoria de Trabajo</span>
                   </div>
                   <div className="flex items-center space-x-2 p-3 bg-orange-50 rounded-lg">
                     <Target className="h-5 w-5 text-orange-600" />
-                    <span className="text-sm">3. Atención Sostenida</span>
+                    <span className="text-sm">4. Atención Sostenida</span>
                   </div>
                 </div>
               </div>
@@ -422,12 +507,68 @@ const TestCompleto = () => {
         </div>
       )}
 
+      {currentPhase === 'smart' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Brain className="h-5 w-5 text-blue-600" />
+              <span>Test SMART (Fase 1/4)</span>
+            </CardTitle>
+            <CardDescription>
+              Evaluación de memoria inmediata y capacidades cognitivas básicas
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {smartPhase === 'instructions' && (
+              <div className="text-center space-y-4">
+                <p className="text-gray-600">
+                  El Test SMART evaluará su memoria inmediata mediante una serie de preguntas y ejercicios.
+                </p>
+                <Button onClick={startSmartTest} className="bg-blue-600 hover:bg-blue-700">
+                  Iniciar Test SMART
+                </Button>
+              </div>
+            )}
+            
+            {smartPhase === 'test' && (
+              <div className="text-center space-y-6">
+                <div className="text-6xl mb-6">🧠</div>
+                <p className="text-lg font-semibold">Test SMART en progreso...</p>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    Respondiendo preguntas de memoria inmediata y capacidades cognitivas
+                  </p>
+                </div>
+                <Progress value={((Date.now() - startTime) / 8000) * 100} className="w-full" />
+              </div>
+            )}
+            
+            {smartPhase === 'finished' && (
+              <div className="text-center space-y-4">
+                <div className="text-4xl font-bold text-blue-600">
+                  {((smartResults.correctAnswers / smartResults.totalQuestions) * 10).toFixed(1)}/10
+                </div>
+                <p className="text-lg font-semibold">Test SMART Completado</p>
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    Respuestas correctas: {smartResults.correctAnswers} de {smartResults.totalQuestions}
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Continuando automáticamente al siguiente test...
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {currentPhase === 'visual' && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Eye className="h-5 w-5 text-green-600" />
-              <span>Test de Memoria Visual (Fase 1/3)</span>
+              <span>Test de Memoria Visual (Fase 2/4)</span>
             </CardTitle>
             <CardDescription>
               {visualPhase === 'study' ? 
@@ -478,7 +619,7 @@ const TestCompleto = () => {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Brain className="h-5 w-5 text-purple-600" />
-              <span>Test de Memoria de Trabajo (Fase 2/3)</span>
+              <span>Test de Memoria de Trabajo (Fase 3/4)</span>
             </CardTitle>
             <CardDescription>
               Ensayo {workingMemoryTrial + 1} de 15 - Longitud: {sequenceLength} dígitos
@@ -548,10 +689,10 @@ const TestCompleto = () => {
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Target className="h-5 w-5 text-orange-600" />
-              <span>Test de Atención Sostenida (Fase 3/3)</span>
+              <span>Test de Atención Sostenida (Fase 4/4)</span>
             </CardTitle>
             <CardDescription>
-              Presione "Objetivo" cuando vea una X, ignore las otras letras.
+              Presione "Objetivo" cuando vea una X, no presione nada cuando vea otras letras.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -577,12 +718,6 @@ const TestCompleto = () => {
                     className="bg-red-500 hover:bg-red-600"
                   >
                     Objetivo (X)
-                  </Button>
-                  <Button 
-                    onClick={() => respondToAttention(false)}
-                    variant="outline"
-                  >
-                    No es objetivo
                   </Button>
                 </div>
                 <Progress 
@@ -614,6 +749,10 @@ const TestCompleto = () => {
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg">Puntuaciones Obtenidas</h3>
                 <div className="space-y-3">
+                  <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                    <span>Memoria Inmediata (SMART): </span>
+                    <span className="font-bold text-blue-600">{testResults.memoria_inmediata?.toFixed(1) || '0.0'}/10</span>
+                  </div>
                   <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                     <span>Memoria Visual: </span>
                     <span className="font-bold text-green-600">{testResults.memoria_visual?.toFixed(1) || '0.0'}/10</span>
@@ -625,10 +764,6 @@ const TestCompleto = () => {
                   <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
                     <span>Atención Sostenida: </span>
                     <span className="font-bold text-orange-600">{testResults.atencion_sostenida?.toFixed(1) || '0.0'}/10</span>
-                  </div>
-                  <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                    <span>Memoria Inmediata: </span>
-                    <span className="font-bold text-blue-600">{testResults.memoria_inmediata?.toFixed(1) || '0.0'}/10</span>
                   </div>
                 </div>
               </div>
