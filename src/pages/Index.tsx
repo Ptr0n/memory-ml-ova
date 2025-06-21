@@ -167,7 +167,7 @@ const Index = () => {
               </Card>
 
               <Card className="hover:shadow-lg transition-shadow">
-                <CardHeader>
+                <CardHeader className="my-0">
                   <CardTitle className="flex items-center space-x-2">
                     <Database className="h-5 w-5 text-indigo-600" />
                     <span>Gestión de Datos</span>
@@ -176,7 +176,7 @@ const Index = () => {
                     Administración y exportación de resultados
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="my-0">
                   <p className="text-sm text-gray-600 mb-4">
                     Herramientas para gestionar participantes, exportar datos 
                     y mantener la base de datos de resultados.
@@ -247,21 +247,23 @@ const Index = () => {
               </div>
             </div>
             <div className="text-center">
-              <h3 className="font-semibold text-gray-900 mb-4">Autores</h3>
-              <p className="text-sm text-gray-600">Desarrollado por estudiantes</p>
-              <p className="text-sm text-gray-600">de Licenciatura en Informática</p>
+              <h3 className="font-semibold text-gray-900 mb-4">
+
+Autores</h3>
+              <p className="text-sm text-gray-600">Felipe Patrón
+Juan Angulo</p>
+              <p className="text-sm text-gray-600">Licenciatura en Informática</p>
             </div>
             <div className="text-center md:text-right">
-              <h3 className="font-semibold text-gray-900 mb-4">Año</h3>
+              <h3 className="font-semibold text-gray-900 mb-4">
+
+Año</h3>
               <p className="text-sm text-gray-600">2025</p>
               <p className="text-sm text-gray-600">Proyecto Académico</p>
             </div>
           </div>
           <div className="mt-8 pt-8 border-t text-center">
-            <p className="text-xs text-gray-500">
-              © 2024 Universidad de Córdoba - Facultad de Educación - Licenciatura en Informática. 
-              Todos los derechos reservados.
-            </p>
+            <p className="text-xs text-gray-500">© 2025 Universidad de Córdoba - Facultad de Educación - Licenciatura en Informática. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>
