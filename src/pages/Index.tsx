@@ -20,6 +20,11 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
+              <img 
+                src="/lovable-uploads/3a80f066-44d4-45c4-bff5-bd2214d6ff72.png" 
+                alt="Universidad de Córdoba" 
+                className="h-12 w-auto max-w-[150px] md:max-w-[200px] object-contain"
+              />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Sistema de Evaluación Cognitiva</h1>
                 <p className="text-sm text-gray-600">Plataforma integral para tests neuropsicológicos</p>
@@ -68,10 +73,11 @@ const Index = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-gray-600 mb-4">
-                    Incluye Memoria Visual, Memoria de Trabajo y Atención Sostenida 
+                    Incluye Test SMART, Memoria Visual, Memoria de Trabajo y Atención Sostenida 
                     en un flujo continuo y validado.
                   </p>
                   <div className="flex flex-wrap gap-2">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">SMART</span>
                     <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">Visual</span>
                     <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">Trabajo</span>
                     <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded">Atención</span>
@@ -119,6 +125,28 @@ const Index = () => {
                   <div className="flex flex-wrap gap-2">
                     <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded">10 min</span>
                     <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded">Adaptativo</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Brain className="h-5 w-5 text-blue-600" />
+                    <span>Test SMART</span>
+                  </CardTitle>
+                  <CardDescription>
+                    Survey for Memory, Attention and Reaction Time
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Evaluación integral de memoria inmediata, atención y velocidad 
+                    de procesamiento cognitivo.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">15 min</span>
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">Completo</span>
                   </div>
                 </CardContent>
               </Card>
@@ -217,10 +245,17 @@ const Index = () => {
       <footer className="bg-white border-t mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center md:text-left">
-              <h3 className="font-semibold text-gray-900 mb-4">Universidad de Córdoba</h3>
-              <p className="text-sm text-gray-600">Facultad de Educación</p>
-              <p className="text-sm text-gray-600">Licenciatura en Informática</p>
+            <div className="flex flex-col items-center md:items-start">
+              <img 
+                src="/lovable-uploads/3a80f066-44d4-45c4-bff5-bd2214d6ff72.png" 
+                alt="Unicordoba" 
+                className="h-16 w-auto max-w-[150px] object-contain mb-4"
+              />
+              <div className="text-center md:text-left">
+                <p className="text-sm text-gray-600">Universidad de Córdoba</p>
+                <p className="text-sm text-gray-600">Facultad de Educación</p>
+                <p className="text-sm text-gray-600">Licenciatura en Informática</p>
+              </div>
             </div>
             <div className="text-center">
               <h3 className="font-semibold text-gray-900 mb-4">Autores</h3>
