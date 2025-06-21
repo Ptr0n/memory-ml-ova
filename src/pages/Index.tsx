@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,20 +10,14 @@ import DataVisualization from "@/components/visualization/DataVisualization";
 import AdminPanel from "@/components/admin/AdminPanel";
 import ModelAnalysis from "@/components/ai/ModelAnalysis";
 import ResourcesSection from "@/components/resources/ResourcesSection";
-
 const Index = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+  return <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <img 
-                src="/lovable-uploads/3a80f066-44d4-45c4-bff5-bd2214d6ff72.png" 
-                alt="Universidad de Córdoba" 
-                className="h-12 w-auto max-w-[150px] md:max-w-[200px] object-contain"
-              />
+              <img src="/lovable-uploads/3a80f066-44d4-45c4-bff5-bd2214d6ff72.png" alt="Universidad de Córdoba" className="h-12 w-auto max-w-[150px] md:max-w-[200px] object-contain" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Sistema de Evaluación Cognitiva</h1>
                 <p className="text-sm text-gray-600">Plataforma integral para tests neuropsicológicos</p>
@@ -246,11 +239,7 @@ const Index = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid md:grid-cols-3 gap-8">
             <div className="flex flex-col items-center md:items-start">
-              <img 
-                src="/lovable-uploads/3a80f066-44d4-45c4-bff5-bd2214d6ff72.png" 
-                alt="Unicordoba" 
-                className="h-16 w-auto max-w-[150px] object-contain mb-4"
-              />
+              <img src="/lovable-uploads/3a80f066-44d4-45c4-bff5-bd2214d6ff72.png" alt="Unicordoba" className="h-16 w-auto max-w-[150px] object-contain mb-4" />
               <div className="text-center md:text-left">
                 <p className="text-sm text-gray-600">Universidad de Córdoba</p>
                 <p className="text-sm text-gray-600">Facultad de Educación</p>
@@ -264,7 +253,7 @@ const Index = () => {
             </div>
             <div className="text-center md:text-right">
               <h3 className="font-semibold text-gray-900 mb-4">Año</h3>
-              <p className="text-sm text-gray-600">2024</p>
+              <p className="text-sm text-gray-600">2025</p>
               <p className="text-sm text-gray-600">Proyecto Académico</p>
             </div>
           </div>
@@ -276,8 +265,6 @@ const Index = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
