@@ -253,24 +253,18 @@ const Index = () => {
               />
               <div className="text-center md:text-left">
                 <p className="text-sm text-gray-600">Universidad de Córdoba</p>
-                <br />
                 <p className="text-sm text-gray-600">Facultad de Educación</p>
-                <br />
                 <p className="text-sm text-gray-600">Licenciatura en Informática</p>
               </div>
             </div>
             <div className="text-center">
               <h3 className="font-semibold text-gray-900 mb-4">Autores</h3>
-              <br />
               <p className="text-sm text-gray-600">Desarrollado por estudiantes</p>
-              <br />
               <p className="text-sm text-gray-600">de Licenciatura en Informática</p>
             </div>
             <div className="text-center md:text-right">
               <h3 className="font-semibold text-gray-900 mb-4">Año</h3>
-              <br />
               <p className="text-sm text-gray-600">2024</p>
-              <br />
               <p className="text-sm text-gray-600">Proyecto Académico</p>
             </div>
           </div>
